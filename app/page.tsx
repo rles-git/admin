@@ -179,7 +179,7 @@ export default function Home() {
     <div className="metric-grid">
       <Metric title="Total Stations" value={stationsLoading ? "—" : stationsError ? "—" : String(stations.length)} sub={stationsLoading ? "Loading database records" : stationsError ? "Database unavailable" : "Live station records"}/>
       <Metric title="Total Chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.length)} sub={chargersLoading ? "Loading database records" : chargersError ? "Database unavailable" : "Live charger records"}/>
-      <Metric title="Connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.length)} sub={connectorsLoading ? "Loading database records" : connectorsError ? "Database unavailable" : "Live connector records"}/>
+      <Metric title="Total Connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.length)} sub={connectorsLoading ? "Loading database records" : connectorsError ? "Database unavailable" : "Live connector records"}/>
       <Metric title="Active Sessions" value="12" sub="Live snapshot · 14:32 AST"/>
       <Metric title="Network Uptime" value="99.2%" sub="+0.4 pp vs prior period"/>
       <Metric title="Energy Delivered" value="48,620 kWh" sub="+12.8% vs prior period"/>
@@ -206,7 +206,8 @@ export default function Home() {
   const renderChargers = () => <div className="page-content">
     <div className="page-heading"><div><h1>Chargers</h1><p>Hardware inventory, connectivity and firmware across your network.</p></div><div className="heading-actions"><button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16}/> Add charger</button></div></div>
     <div className="metric-grid charger-metrics">
-      <Metric title="Installed chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.length)} sub="Live database records"/>
+      <Metric title="Total chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.length)} sub="Live database records"/>
+      <Metric title="Total connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.length)} sub={connectorsLoading ? "Loading database records" : connectorsError ? "Database unavailable" : "Live database records"}/>
       <Metric title="Available / online" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.filter(c => /available|online|charging|connected/i.test(c.status || "")).length)} sub="Based on charger status"/>
       <Metric title="Faulted chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.filter(c => /fault|error|failed/i.test(c.status || "")).length)} sub="Based on charger status"/>
       <Metric title="Total rated power" value={chargersLoading ? "—" : chargersError ? "—" : `${databaseChargers.reduce((sum, c) => sum + (Number(c.max_power_kw) || 0), 0)} kW`} sub="Sum of max_power_kw"/>
@@ -230,6 +231,7 @@ export default function Home() {
     <div className="page-heading"><div><h1>Connectors</h1><p>Connector inventory loaded from your database.</p></div><div className="heading-actions"><button className="outline-button" onClick={() => window.location.reload()}><Activity size={14}/> Refresh data</button></div></div>
     <div className="metric-grid charger-metrics">
       <Metric title="Total connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.length)} sub="Live database records"/>
+      <Metric title="Total chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.length)} sub={chargersLoading ? "Loading database records" : chargersError ? "Database unavailable" : "Live database records"}/>
       <Metric title="Rated connector power" value={connectorsLoading ? "—" : connectorsError ? "—" : `${databaseConnectors.reduce((sum, c) => sum + (Number(c.max_power_kw) || 0), 0)} kW`} sub="Sum of max_power_kw"/>
       <Metric title="Available connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.filter(c => /available|online|ready/i.test(c.status || "")).length)} sub="Based on connector status"/>
       <Metric title="Faulted connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.filter(c => /fault|error|failed/i.test(c.status || "")).length)} sub="Based on connector status"/>
