@@ -1,6 +1,6 @@
  "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, AlertTriangle, ArrowDownToLine, ArrowRight, Bell, Bolt, CalendarDays,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, ClipboardList,
@@ -27,14 +27,21 @@ const chargers: Charger[] = [
   { id: "Q004-CH02", station: "Q004 · Education City", state: "Charging", ports: "1 / 2", firmware: "4.2.1", heartbeat: "5 sec ago" },
   { id: "Q005-CH01", station: "Q005 · Al Wakrah Hub", state: "Available", ports: "0 / 2", firmware: "4.2.1", heartbeat: "8 sec ago" },
 ];
-const stations = [
-  { id: "Q001", name: "Msheireb Central", municipality: "Doha", chargers: "4 chargers", available: "5 / 8", energy: "12,480 kWh", status: "Operational" },
-  { id: "Q002", name: "Lusail Marina", municipality: "Lusail", chargers: "4 chargers", available: "5 / 8", energy: "10,860 kWh", status: "Operational" },
-  { id: "Q003", name: "West Bay", municipality: "Doha", chargers: "4 chargers", available: "4 / 8", energy: "8,940 kWh", status: "Degraded" },
-  { id: "Q004", name: "Education City", municipality: "Al Rayyan", chargers: "4 chargers", available: "6 / 8", energy: "7,260 kWh", status: "Operational" },
-  { id: "Q005", name: "Al Wakrah Hub", municipality: "Al Wakrah", chargers: "4 chargers", available: "5 / 8", energy: "4,980 kWh", status: "Maintenance" },
-  { id: "Q006", name: "Airport Gateway", municipality: "Doha", chargers: "4 chargers", available: "5 / 8", energy: "4,100 kWh", status: "Degraded" },
-];
+type Station = {
+  id: string | number;
+  name: string;
+  shortName?: string | null;
+  address?: string | null;
+  lat?: number | string | null;
+  lng?: number | string | null;
+  plugs?: number | null;
+  available?: number | null;
+  power?: number | string | null;
+  price?: number | string | null;
+  kind?: string | null;
+  distance?: number | string | null;
+  minutes?: number | null;
+};
 const navGroups = [
   { label: "OVERVIEW", items: [{ name: "Dashboard", icon: LayoutDashboard }, { name: "Stations", icon: Map }, { name: "Chargers", icon: PlugZap }, { name: "Connectors", icon: Zap }, { name: "Live Monitoring", icon: Activity }, { name: "Map View", icon: Map }] },
   { label: "OPERATIONS", items: [{ name: "Faults & Alerts", icon: AlertTriangle, count: "4" }, { name: "Maintenance", icon: Wrench }, { name: "Charging Sessions", icon: ClipboardList }] },
@@ -66,6 +73,30 @@ export default function Home() {
   const [mobileNav, setMobileNav] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedCharger, setSelectedCharger] = useState<Charger | null>(null);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [stationsLoading, setStationsLoading] = useState(true);
+  const [stationsError, setStationsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadStations = async () => {
+      setStationsLoading(true);
+      setStationsError("");
+      try {
+        const response = await fetch("/api/stations", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Unable to load stations (HTTP ${response.status}).`);
+        const data = await response.json();
+        if (!Array.isArray(data)) throw new Error("The stations API returned an unexpected response.");
+        if (!cancelled) setStations(data);
+      } catch (error) {
+        if (!cancelled) setStationsError(error instanceof Error ? error.message : "Unable to load stations.");
+      } finally {
+        if (!cancelled) setStationsLoading(false);
+      }
+    };
+    loadStations();
+    return () => { cancelled = true; };
+  }, []);
 
   const filteredChargers = useMemo(() => chargers.filter((charger) => {
     const matchesTab = chargerTab === "All chargers" ||
@@ -119,7 +150,7 @@ export default function Home() {
       <section className="panel"><div className="panel-head"><h3>Recent faults</h3><button className="text-button" onClick={() => setPage("Faults & Alerts")}>4 open · View all <ArrowRight size={12}/></button></div><div className="fault-row"><span className="severity critical">Critical</span><div><strong>Q003-CH02 · Connector temperature</strong><p>14:18 · Assigned to Omar Khalid</p></div></div><div className="fault-row"><span className="severity warning">Warning</span><div><strong>Q006-CH04 · Communication lost</strong><p>13:52 · Assigned to Sara Ali</p></div></div></section>
       <section className="panel"><div className="panel-head"><h3>Maintenance reminders</h3><span>Next 7 days</span></div><div className="maintenance-row"><span className="date-chip">21 OCT</span><div><strong>Q005 · Cooling system service</strong><p>WO-104 · Sara Ali · 09:00–11:00</p></div></div><div className="maintenance-row"><span className="date-chip">23 OCT</span><div><strong>Q002 · Preventive inspection</strong><p>WO-105 · Omar Khalid · 08:00–10:00</p></div></div></section>
     </div>
-    <section className="panel station-performance"><div className="panel-head"><h3>Station performance</h3><button className="text-button" onClick={() => setPage("Stations")}>Month to date · View stations <ArrowRight size={12}/></button></div><StationsTable onSelect={(station) => { setPage("Stations"); toast(`${station} selected.`); }}/><div className="table-foot">6 illustrative stations · 24 chargers · 48 connectors <span>‹　1　›</span></div></section>
+    <section className="panel station-performance"><div className="panel-head"><h3>Station performance</h3><button className="text-button" onClick={() => setPage("Stations")}>Month to date · View stations <ArrowRight size={12}/></button></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => { setPage("Stations"); toast(`${station} selected.`); }}/><div className="table-foot">{stationsLoading ? "Loading stations…" : `${stations.length} stations from database`} <span>‹　1　›</span></div></section>
     <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
   </div>;
 
@@ -146,7 +177,7 @@ export default function Home() {
     <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
   </div>;
 
-  const renderGeneric = () => <div className="page-content generic-page"><div className="page-heading"><div><h1>{page}</h1><p>Manage and monitor your Be-Electric charging network.</p></div><button className="primary-button" onClick={() => toast(`${page} action is a demo in this prototype.`)}><Plus size={15}/> Create new</button></div><div className="generic-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>{page} workspace</strong><p>This section is included in the navigation prototype. The dashboard and charger inventory are implemented with sample data.</p></div></div><div className="generic-cards"><div className="panel"><Activity/><h3>Network status</h3><strong>Operational</strong><p>22 of 24 chargers online</p></div><div className="panel"><AlertTriangle/><h3>Items requiring attention</h3><strong>4 open alerts</strong><p>Review fault and maintenance queues</p></div><div className="panel"><Clock3/><h3>Last update</h3><strong>14:32 AST</strong><p>Illustrative sample telemetry</p></div></div><section className="panel generic-table"><div className="panel-head"><h3>Quick overview</h3><span>Illustrative demo data</span></div><StationsTable onSelect={(station) => toast(`${station} selected.`)}/></section><footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer></div>;
+  const renderGeneric = () => <div className="page-content generic-page"><div className="page-heading"><div><h1>{page}</h1><p>Manage and monitor your Be-Electric charging network.</p></div><button className="primary-button" onClick={() => toast(`${page} action is a demo in this prototype.`)}><Plus size={15}/> Create new</button></div><div className="generic-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>{page} workspace</strong><p>This section is included in the navigation prototype. The dashboard and charger inventory are implemented with sample data.</p></div></div><div className="generic-cards"><div className="panel"><Activity/><h3>Network status</h3><strong>Operational</strong><p>22 of 24 chargers online</p></div><div className="panel"><AlertTriangle/><h3>Items requiring attention</h3><strong>4 open alerts</strong><p>Review fault and maintenance queues</p></div><div className="panel"><Clock3/><h3>Last update</h3><strong>14:32 AST</strong><p>Illustrative sample telemetry</p></div></div><section className="panel generic-table"><div className="panel-head"><h3>Quick overview</h3><span>Illustrative demo data</span></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => toast(`${station} selected.`)}/></section><footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer></div>;
 
 
   const renderChargingSessions = () => <div className="page-content">
@@ -314,10 +345,10 @@ export default function Home() {
     {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation"/>}
     <main className="main-area">
       <header className="topbar"><div className="breadcrumb"><button className="menu-toggle" onClick={() => setMobileNav(true)}><Menu size={19}/></button><span>Workspace</span><span className="crumb-slash">/</span><strong>{page}</strong></div><div className="topbar-right"><span className="demo-tag">Demo data · Illustrative only</span><button className="bell-button" onClick={() => setPage("Faults & Alerts")} aria-label="Notifications"><Bell size={17}/><i/></button><div className="avatar">AM</div><button className="profile-button" onClick={() => setPage("Users & Roles")}><strong>Aisha Mansour</strong><small>Network administrator</small><ChevronDown size={13}/></button></div></header>
-      {page === "Dashboard" ? renderDashboard() : page === "Chargers" ? renderChargers() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
+      {page === "Dashboard" ? renderDashboard() : page === "Stations" ? <div className="page-content"><div className="page-heading"><div><h1>Stations</h1><p>Live station records loaded from your database.</p></div><button className="outline-button" onClick={() => window.location.reload()}>Refresh</button></div><section className="panel inventory-panel"><div className="panel-head"><h3>Station inventory</h3><span>{stationsLoading ? "Loading…" : `${stations.length} records`}</span></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => toast(`${station} selected.`)}/></section><footer>Be-Electric · Station records from configured database</footer></div> : page === "Chargers" ? renderChargers() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
     </main>
     {notice && <div className="toast"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")}><X size={14}/></button></div>}
-    {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-head"><div><h2>Add charger</h2><p>Register a charger in the network inventory.</p></div><button className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>Charger ID<input placeholder="e.g. Q007-CH01"/></label><label>Station<select defaultValue=""><option value="" disabled>Select station</option>{stations.map(s => <option key={s.id}>{s.id} · {s.name}</option>)}</select></label><label>Firmware version<select defaultValue="4.2.1"><option>4.2.1</option><option>4.1.8</option></select></label><div className="modal-actions"><button className="outline-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" onClick={() => { setShowAdd(false); toast("Demo only: charger form submitted. No database is connected."); }}>Register charger</button></div><p className="modal-note">Demo prototype — this form does not save to a backend.</p></div></div>}
+    {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-head"><div><h2>Add charger</h2><p>Register a charger in the network inventory.</p></div><button className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>Charger ID<input placeholder="e.g. Q007-CH01"/></label><label>Station<select defaultValue=""><option value="" disabled>Select station</option>{stations.map(s => <option key={String(s.id)}>{s.id} · {s.name}</option>)}</select></label><label>Firmware version<select defaultValue="4.2.1"><option>4.2.1</option><option>4.1.8</option></select></label><div className="modal-actions"><button className="outline-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" onClick={() => { setShowAdd(false); toast("Demo only: charger form submitted. No database is connected."); }}>Register charger</button></div><p className="modal-note">Demo prototype — this form does not save to a backend.</p></div></div>}
     {selectedCharger && <div className="modal-backdrop" onClick={() => setSelectedCharger(null)}><div className="modal detail-modal" onClick={e => e.stopPropagation()}><div className="modal-head"><div><span className="eyebrow">CHARGER DETAILS</span><h2>{selectedCharger.id}</h2><p>{selectedCharger.station}</p></div><button className="icon-button" onClick={() => setSelectedCharger(null)}><X size={18}/></button></div><div className="detail-status"><StatusPill status={selectedCharger.state}/><span>Last heartbeat: {selectedCharger.heartbeat}</span></div><Spec label="Operating state" value={selectedCharger.state}/><Spec label="Ports in use" value={selectedCharger.ports}/><Spec label="Firmware version" value={selectedCharger.firmware}/><Spec label="Communication" value={selectedCharger.state === "Offline" ? "No recent heartbeat" : "Connected · OCPP 1.6J"}/><div className="modal-actions"><button className="outline-button" onClick={() => { setSelectedCharger(null); setPage("Maintenance"); }}>Maintenance history</button><button className="primary-button" onClick={() => { setSelectedCharger(null); toast("Demo only: command queued locally."); }}>Send command</button></div><p className="modal-note">Sample record only. Live device controls are not connected.</p></div></div>}
   </div>;
 }
@@ -331,8 +362,23 @@ function Progress({ label, value, percent }: { label: string; value: string; per
 function MiniChart({ title, value, sub, variant }: { title: string; value: string; sub: string; variant: number }) {
   return <section className="panel mini-chart"><div className="panel-head"><h3>{title}</h3><span>01–20 Oct</span></div><div className="mini-summary"><strong>{value}</strong><span>{sub}</span><small>↗ 12.8% vs prior period</small></div><Sparkline variant={variant}/><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div></section>;
 }
-function StationsTable({ onSelect }: { onSelect: (name: string) => void }) {
-  return <div className="table-wrap"><table><thead><tr><th>STATION / ID</th><th>MUNICIPALITY</th><th>CHARGERS</th><th>AVAILABLE / TOTAL</th><th>ENERGY DELIVERED</th><th>STATUS</th></tr></thead><tbody>{stations.map(s => <tr key={s.id} className="clickable-row" onClick={() => onSelect(`${s.id} · ${s.name}`)}><td><strong>{s.id} · {s.name}</strong></td><td>{s.municipality}</td><td>{s.chargers}</td><td>{s.available}</td><td>{s.energy}</td><td><span className={`station-state ${s.status.toLowerCase()}`}>{s.status}</span></td></tr>)}</tbody></table></div>;
+function StationsTable({ stations, loading, error, onSelect }: {
+  stations: Station[];
+  loading: boolean;
+  error: string;
+  onSelect: (name: string) => void;
+}) {
+  const formatValue = (value: string | number | null | undefined, suffix = "") =>
+    value === null || value === undefined || value === "" ? "—" : `${value}${suffix}`;
+
+  return <div className="table-wrap"><table><thead><tr><th>STATION / ID</th><th>ADDRESS</th><th>PLUGS</th><th>AVAILABLE</th><th>POWER</th><th>PRICE</th><th>TYPE</th></tr></thead><tbody>
+    {loading && <tr><td colSpan={7}>Loading stations from database…</td></tr>}
+    {!loading && error && <tr><td colSpan={7}>Could not load stations: {error}</td></tr>}
+    {!loading && !error && stations.length === 0 && <tr><td colSpan={7}>No stations found in the database.</td></tr>}
+    {!loading && !error && stations.map(s => <tr key={String(s.id)} className="clickable-row" onClick={() => onSelect(`${s.id} · ${s.name}`)}>
+      <td><strong>{s.id} · {s.shortName || s.name}</strong></td><td>{formatValue(s.address)}</td><td>{formatValue(s.plugs)}</td><td>{formatValue(s.available)}</td><td>{formatValue(s.power, typeof s.power === "number" || (typeof s.power === "string" && /^\d+(\.\d+)?$/.test(s.power)) ? " kW" : "")}</td><td>{formatValue(s.price, typeof s.price === "number" || (typeof s.price === "string" && /^\d+(\.\d+)?$/.test(s.price)) ? "" : "")}</td><td>{formatValue(s.kind)}</td>
+    </tr>)}
+  </tbody></table>{!loading && error && <div className="empty-state"><p>Check that the admin app has an <code>/api/stations</code> route configured to query Neon.</p></div>}</div>;
 }
 function Spec({ label, value }: { label: string; value: string }) {
   return <div className="spec-row"><strong>{label}</strong><span>{value}</span></div>;
