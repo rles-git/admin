@@ -6,7 +6,7 @@ import {
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, ClipboardList,
   Download, Gauge, LayoutDashboard, Map, Menu, MoreHorizontal, Plus, Search,
   Settings, SlidersHorizontal, Users, Wrench, Zap, PlugZap, Radio, Leaf,
-  CircleUserRound, X, Wifi, Clock3, CheckCircle2, CircleAlert, Filter,
+  CircleUserRound, X, Wifi, Clock3, CheckCircle2, CircleAlert, Filter, BarChart3, TrendingUp, Receipt, TreePine, CalendarClock, CircleDollarSign, FileText, CarFront,
 } from "lucide-react";
 
 type ChargerStatus = "Charging" | "Available" | "Faulted" | "Maintenance" | "Offline";
@@ -148,6 +148,163 @@ export default function Home() {
 
   const renderGeneric = () => <div className="page-content generic-page"><div className="page-heading"><div><h1>{page}</h1><p>Manage and monitor your Be-Electric charging network.</p></div><button className="primary-button" onClick={() => toast(`${page} action is a demo in this prototype.`)}><Plus size={15}/> Create new</button></div><div className="generic-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>{page} workspace</strong><p>This section is included in the navigation prototype. The dashboard and charger inventory are implemented with sample data.</p></div></div><div className="generic-cards"><div className="panel"><Activity/><h3>Network status</h3><strong>Operational</strong><p>22 of 24 chargers online</p></div><div className="panel"><AlertTriangle/><h3>Items requiring attention</h3><strong>4 open alerts</strong><p>Review fault and maintenance queues</p></div><div className="panel"><Clock3/><h3>Last update</h3><strong>14:32 AST</strong><p>Illustrative sample telemetry</p></div></div><section className="panel generic-table"><div className="panel-head"><h3>Quick overview</h3><span>Illustrative demo data</span></div><StationsTable onSelect={(station) => toast(`${station} selected.`)}/></section><footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer></div>;
 
+
+  const renderChargingSessions = () => <div className="page-content">
+    <div className="page-heading">
+      <div><h1>Charging Sessions</h1><p>Track charging activity, session performance and energy delivered across your network.</p></div>
+      <div className="heading-actions">
+        <button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button>
+        <button className="primary-button" onClick={() => toast("Session report exported in this demo.")}><Download size={15}/> Export report</button>
+      </div>
+    </div>
+    <div className="metric-grid">
+      <Metric title="Total sessions" value="1,986" sub="+14.2% vs prior period"/>
+      <Metric title="Completed sessions" value="1,824" sub="91.8% completion rate"/>
+      <Metric title="Energy delivered" value="48,620 kWh" sub="+12.8% vs prior period"/>
+      <Metric title="Average session" value="24.6 kWh" sub="38 min average duration"/>
+    </div>
+    <div className="analytics-grid session-analytics">
+      <section className="panel energy-panel">
+        <div className="panel-head"><h3>Session activity</h3><span>01–20 Oct 2026</span></div>
+        <div className="chart-summary"><strong>1,986</strong><span>sessions</span><small>↗ 14.2% vs prior period</small></div>
+        <div className="bar-chart" aria-label="Illustrative daily charging session chart">
+          {[42,55,48,67,61,73,58,80,65,72,88,69,77,94,82,73,98,84,90,100].map((h,i)=><i key={i} style={{height:`${h}%`}} title={`${i+1} Oct`}/>)}
+        </div>
+        <div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div>
+      </section>
+      <section className="panel health-panel">
+        <div className="panel-head"><h3>Session outcomes</h3><span>Current period</span></div>
+        <div className="donut-layout"><div className="donut-chart"><div><strong>91.8%</strong><span>completed</span></div></div><div className="legend-list"><span><i className="legend-dot completed"/>Completed <b>1,824</b></span><span><i className="legend-dot active"/>In progress <b>12</b></span><span><i className="legend-dot interrupted"/>Interrupted <b>150</b></span></div></div>
+        <p className="muted tiny">Session totals are illustrative demo data.</p>
+      </section>
+    </div>
+    <div className="mini-chart-grid">
+      <MiniChart title="Energy per day" value="2,431" sub="kWh average" variant={1}/>
+      <MiniChart title="Average duration" value="38 min" sub="per session" variant={2}/>
+      <MiniChart title="Repeat charging" value="64%" sub="returning drivers" variant={3}/>
+    </div>
+    <div className="two-panel-grid">
+      <section className="panel"><div className="panel-head"><h3>Sessions by station</h3><button className="text-button" onClick={() => setPage("Stations")}>View stations <ArrowRight size={12}/></button></div>
+        {([{name:"Msheireb Central",value:82,count:"426"},{name:"Lusail Marina",value:72,count:"371"},{name:"West Bay",value:61,count:"314"},{name:"Education City",value:49,count:"253"},{name:"Al Wakrah Hub",value:38,count:"196"}]).map(s=><div className="rank-row" key={s.name}><span>{s.name}</span><div className="progress-track"><i style={{width:`${s.value}%`}}/></div><strong>{s.count}</strong></div>)}
+      </section>
+      <section className="panel"><div className="panel-head"><h3>Session insights</h3><span>01–20 Oct</span></div>
+        <div className="insight-row"><div className="insight-icon"><Clock3 size={16}/></div><div><strong>Peak charging window</strong><p>12:00–15:00 AST · highest session volume</p></div></div>
+        <div className="insight-row"><div className="insight-icon"><Zap size={16}/></div><div><strong>Energy per completed session</strong><p>26.7 kWh average across all stations</p></div></div>
+        <div className="insight-row"><div className="insight-icon"><TrendingUp size={16}/></div><div><strong>Completion rate</strong><p>Up 2.4 percentage points from prior period</p></div></div>
+      </section>
+    </div>
+    <section className="panel inventory-panel"><div className="panel-head"><h3>Recent charging sessions</h3><span>Latest activity · illustrative records</span></div>
+      <div className="table-wrap"><table><thead><tr><th>SESSION ID</th><th>STATION</th><th>START TIME</th><th>DURATION</th><th>ENERGY</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
+        {[
+          ["SES-10284","Q001 · Msheireb Central","20 Oct, 14:12","32 min","28.4 kWh","QAR 34.08","Completed"],
+          ["SES-10283","Q002 · Lusail Marina","20 Oct, 14:08","41 min","36.2 kWh","QAR 43.44","Charging"],
+          ["SES-10282","Q004 · Education City","20 Oct, 13:56","27 min","21.8 kWh","QAR 26.16","Completed"],
+          ["SES-10281","Q003 · West Bay","20 Oct, 13:42","18 min","14.6 kWh","QAR 17.52","Interrupted"],
+          ["SES-10280","Q001 · Msheireb Central","20 Oct, 13:31","46 min","39.1 kWh","QAR 46.92","Completed"]
+        ].map(r=><tr key={r[0]}><td><strong>{r[0]}</strong></td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td><td>{r[5]}</td><td><StatusPill status={r[6]}/></td></tr>)}
+      </tbody></table></div><div className="table-foot">Showing 5 recent sessions <span>‹　1　›</span></div>
+    </section>
+    <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
+  </div>;
+
+  const renderRevenue = () => <div className="page-content">
+    <div className="page-heading">
+      <div><h1>Revenue &amp; Transactions</h1><p>Monitor charging revenue, payment performance and transaction activity.</p></div>
+      <div className="heading-actions">
+        <button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button>
+        <button className="primary-button" onClick={() => toast("Transaction report exported in this demo.")}><Download size={15}/> Export report</button>
+      </div>
+    </div>
+    <div className="metric-grid">
+      <Metric title="Total revenue" value="QAR 58,344" sub="+16.4% vs prior period"/>
+      <Metric title="Successful transactions" value="1,824" sub="97.6% payment success"/>
+      <Metric title="Average transaction" value="QAR 31.98" sub="Across completed sessions"/>
+      <Metric title="Pending settlement" value="QAR 1,248" sub="18 transactions pending"/>
+    </div>
+    <section className="panel revenue-chart-panel">
+      <div className="panel-head"><h3>Revenue over time</h3><span>01–20 Oct 2026 · QAR</span></div>
+      <div className="chart-summary"><strong>58,344</strong><span>QAR</span><small>↗ 16.4% vs prior period</small></div>
+      <div className="bar-chart revenue-bars" aria-label="Illustrative daily revenue chart">
+        {[38,46,43,52,49,58,54,65,57,69,73,61,78,71,84,76,89,82,94,100].map((h,i)=><i key={i} style={{height:`${h}%`}} title={`${i+1} Oct`}/>)}
+      </div><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div>
+    </section>
+    <div className="mini-chart-grid revenue-mini-grid">
+      <section className="panel mini-chart"><div className="panel-head"><h3>Payment success</h3><span>Current period</span></div><div className="mini-summary"><strong>97.6%</strong><span>success rate</span></div><div className="progress-track wide-progress"><i style={{width:"97.6%"}}/></div><p className="muted tiny">1,824 successful · 45 failed</p></section>
+      <section className="panel mini-chart"><div className="panel-head"><h3>Revenue per station</h3><span>Top performer</span></div><div className="mini-summary"><strong>QAR 13,632</strong><span>Msheireb Central</span></div><p className="muted tiny">23.4% of total network revenue</p><div className="progress-track wide-progress"><i style={{width:"78%"}}/></div></section>
+      <section className="panel mini-chart"><div className="panel-head"><h3>Refunds &amp; adjustments</h3><span>Current period</span></div><div className="mini-summary"><strong>QAR 486</strong><span>12 adjustments</span></div><p className="muted tiny">0.8% of gross revenue</p><div className="progress-track wide-progress"><i style={{width:"8%"}}/></div></section>
+    </div>
+    <div className="two-panel-grid">
+      <section className="panel"><div className="panel-head"><h3>Revenue by station</h3><button className="text-button" onClick={() => setPage("Stations")}>View stations <ArrowRight size={12}/></button></div>
+        {[["Msheireb Central","13,632",92],["Lusail Marina","11,804",80],["West Bay","9,742",66],["Education City","8,246",56],["Al Wakrah Hub","6,118",42]].map(s=><div className="rank-row" key={s[0]}><span>{s[0]}</span><div className="progress-track"><i style={{width:`${s[2]}%`}}/></div><strong>{s[1]}</strong></div>)}
+      </section>
+      <section className="panel"><div className="panel-head"><h3>Payment methods</h3><span>Successful transactions</span></div>
+        <div className="payment-method"><div><span className="payment-symbol"><CircleDollarSign size={16}/></span><span>Credit / debit card</span></div><strong>68%</strong></div><div className="progress-track"><i style={{width:"68%"}}/></div>
+        <div className="payment-method"><div><span className="payment-symbol"><Zap size={16}/></span><span>Mobile wallet</span></div><strong>24%</strong></div><div className="progress-track"><i style={{width:"24%"}}/></div>
+        <div className="payment-method"><div><span className="payment-symbol"><Receipt size={16}/></span><span>Fleet account</span></div><strong>8%</strong></div><div className="progress-track"><i style={{width:"8%"}}/></div>
+      </section>
+    </div>
+    <section className="panel inventory-panel"><div className="panel-head"><h3>Recent transactions</h3><span>Latest payment activity</span></div>
+      <div className="table-wrap"><table><thead><tr><th>TRANSACTION ID</th><th>SESSION ID</th><th>STATION</th><th>DATE &amp; TIME</th><th>PAYMENT METHOD</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
+        {[
+          ["TXN-80421","SES-10284","Msheireb Central","20 Oct, 14:44","Visa •••• 2048","QAR 34.08","Paid"],
+          ["TXN-80420","SES-10282","Education City","20 Oct, 14:25","Apple Pay","QAR 26.16","Paid"],
+          ["TXN-80419","SES-10279","Lusail Marina","20 Oct, 14:02","Visa •••• 1186","QAR 43.44","Pending"],
+          ["TXN-80418","SES-10275","West Bay","20 Oct, 13:48","Fleet account","QAR 17.52","Failed"],
+          ["TXN-80417","SES-10273","Msheireb Central","20 Oct, 13:30","Mastercard •••• 7741","QAR 46.92","Paid"]
+        ].map(r=><tr key={r[0]}><td><strong>{r[0]}</strong></td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td><td>{r[5]}</td><td><StatusPill status={r[6]}/></td></tr>)}
+      </tbody></table></div><div className="table-foot">Showing 5 recent transactions <span>‹　1　›</span></div>
+    </section>
+    <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
+  </div>;
+
+  const renderEnvironmental = () => <div className="page-content">
+    <div className="page-heading">
+      <div><h1>Environmental Impact</h1><p>Understand the emissions avoided and environmental benefits enabled by your charging network.</p></div>
+      <div className="heading-actions">
+        <button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button>
+        <button className="primary-button" onClick={() => toast("Environmental report exported in this demo.")}><Download size={15}/> Export report</button>
+      </div>
+    </div>
+    <div className="impact-banner"><div className="impact-banner-icon"><TreePine size={23}/></div><div><strong>Cleaner journeys, powered by your network.</strong><p>Impact estimates are based on energy delivered and an illustrative factor of 0.42 kg CO₂ avoided per kWh.</p></div><span className="impact-badge">01–20 OCT 2026</span></div>
+    <div className="metric-grid">
+      <Metric title="Estimated CO₂ avoided" value="20.4 t" sub="+12.8% vs prior period"/>
+      <Metric title="Clean energy delivered" value="48,620 kWh" sub="Across 6 charging stations"/>
+      <Metric title="Equivalent trees grown" value="928" sub="Illustrative annual equivalent"/>
+      <Metric title="Fossil fuel displaced" value="5,840 L" sub="Estimated equivalent fuel"/>
+    </div>
+    <div className="analytics-grid impact-analytics">
+      <section className="panel energy-panel">
+        <div className="panel-head"><h3>CO₂ emissions avoided</h3><span>01–20 Oct 2026</span></div>
+        <div className="chart-summary"><strong>20.4</strong><span>tonnes CO₂</span><small>↗ 12.8% vs prior period</small></div>
+        <div className="bar-chart impact-bars" aria-label="Illustrative daily carbon savings chart">
+          {[32,45,39,54,47,63,57,68,61,74,69,80,73,86,77,91,82,89,94,100].map((h,i)=><i key={i} style={{height:`${h}%`}} title={`${i+1} Oct`}/>)}
+        </div><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div>
+      </section>
+      <section className="panel impact-score-panel"><div className="panel-head"><h3>Environmental contribution</h3><span>Current period</span></div>
+        <div className="impact-ring"><div><strong>20.4 t</strong><span>CO₂ avoided</span></div></div>
+        <p className="muted tiny">Estimated savings from electricity delivered by the network.</p>
+        <div className="impact-stat"><span>Average avoided per kWh</span><strong>0.42 kg CO₂</strong></div>
+      </section>
+    </div>
+    <div className="mini-chart-grid">
+      <section className="panel mini-chart"><div className="panel-head"><h3>CO₂ avoided per day</h3><span>Daily average</span></div><div className="mini-summary"><strong>1.02 t</strong><span>CO₂</span></div><Sparkline variant={1}/><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div></section>
+      <section className="panel mini-chart"><div className="panel-head"><h3>Energy delivered</h3><span>Current period</span></div><div className="mini-summary"><strong>48,620</strong><span>kWh</span></div><Sparkline variant={2}/><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div></section>
+      <section className="panel mini-chart"><div className="panel-head"><h3>Network efficiency</h3><span>Current period</span></div><div className="mini-summary"><strong>99.2%</strong><span>uptime</span></div><p className="muted tiny">Reliable charging infrastructure supporting lower-emission mobility.</p><div className="progress-track wide-progress"><i style={{width:"99.2%"}}/></div></section>
+    </div>
+    <div className="two-panel-grid">
+      <section className="panel"><div className="panel-head"><h3>Environmental impact by station</h3><button className="text-button" onClick={() => setPage("Stations")}>View stations <ArrowRight size={12}/></button></div>
+        {[["Msheireb Central","5.24 t",88],["Lusail Marina","4.56 t",77],["West Bay","3.75 t",63],["Education City","3.08 t",52],["Al Wakrah Hub","2.10 t",36]].map(s=><div className="rank-row" key={s[0]}><span>{s[0]}</span><div className="progress-track"><i style={{width:`${s[2]}%`}}/></div><strong>{s[1]}</strong></div>)}
+      </section>
+      <section className="panel"><div className="panel-head"><h3>What this impact represents</h3><span>Illustrative equivalents</span></div>
+        <div className="impact-equivalent"><div className="equivalent-icon"><TreePine size={18}/></div><div><strong>928 trees</strong><p>Equivalent to estimated annual carbon absorption.</p></div></div>
+        <div className="impact-equivalent"><div className="equivalent-icon"><CarFront size={18}/></div><div><strong>5,840 litres</strong><p>Estimated petrol equivalent displaced.</p></div></div>
+        <div className="impact-equivalent"><div className="equivalent-icon"><Zap size={18}/></div><div><strong>48.6 MWh</strong><p>Electricity delivered to charging vehicles.</p></div></div>
+      </section>
+    </div>
+    <section className="panel methodology-panel"><div className="panel-head"><h3>Calculation methodology</h3><span>Transparency &amp; assumptions</span></div><div className="method-grid"><div><span>ENERGY DELIVERED</span><strong>48,620 kWh</strong></div><div><span>AVOIDED EMISSIONS FACTOR</span><strong>0.42 kg CO₂ / kWh</strong></div><div><span>ESTIMATED CO₂ AVOIDED</span><strong>20.4 tonnes</strong></div></div><p className="muted tiny">Figures are illustrative estimates for this prototype and are not independently verified emissions accounting.</p></section>
+    <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
+  </div>;
+
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
       <div className="brand"><div className="brand-mark"><Bolt size={22}/></div><div><b>be-electric</b><small>NETWORK OPERATIONS · QATAR</small></div><button className="close-nav" onClick={() => setMobileNav(false)}><X size={17}/></button></div>
@@ -157,7 +314,7 @@ export default function Home() {
     {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation"/>}
     <main className="main-area">
       <header className="topbar"><div className="breadcrumb"><button className="menu-toggle" onClick={() => setMobileNav(true)}><Menu size={19}/></button><span>Workspace</span><span className="crumb-slash">/</span><strong>{page}</strong></div><div className="topbar-right"><span className="demo-tag">Demo data · Illustrative only</span><button className="bell-button" onClick={() => setPage("Faults & Alerts")} aria-label="Notifications"><Bell size={17}/><i/></button><div className="avatar">AM</div><button className="profile-button" onClick={() => setPage("Users & Roles")}><strong>Aisha Mansour</strong><small>Network administrator</small><ChevronDown size={13}/></button></div></header>
-      {page === "Dashboard" ? renderDashboard() : page === "Chargers" ? renderChargers() : renderGeneric()}
+      {page === "Dashboard" ? renderDashboard() : page === "Chargers" ? renderChargers() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
     </main>
     {notice && <div className="toast"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")}><X size={14}/></button></div>}
     {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-head"><div><h2>Add charger</h2><p>Register a charger in the network inventory.</p></div><button className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>Charger ID<input placeholder="e.g. Q007-CH01"/></label><label>Station<select defaultValue=""><option value="" disabled>Select station</option>{stations.map(s => <option key={s.id}>{s.id} · {s.name}</option>)}</select></label><label>Firmware version<select defaultValue="4.2.1"><option>4.2.1</option><option>4.1.8</option></select></label><div className="modal-actions"><button className="outline-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" onClick={() => { setShowAdd(false); toast("Demo only: charger form submitted. No database is connected."); }}>Register charger</button></div><p className="modal-note">Demo prototype — this form does not save to a backend.</p></div></div>}
