@@ -42,6 +42,30 @@ type Station = {
   distance?: number | string | null;
   minutes?: number | null;
 };
+type DatabaseCharger = {
+  id: string | number;
+  station_id: string | number | null;
+  name: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  serial_number: string | null;
+  max_power_kw: number | string | null;
+  status: string | null;
+  protocol: string | null;
+  protocol_identity: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+type DatabaseConnector = {
+  id: string | number;
+  charger_id: string | number;
+  connector_number: number | string | null;
+  connector_type: string | null;
+  max_power_kw: number | string | null;
+  status: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 const navGroups = [
   { label: "OVERVIEW", items: [{ name: "Dashboard", icon: LayoutDashboard }, { name: "Stations", icon: Map }, { name: "Chargers", icon: PlugZap }, { name: "Connectors", icon: Zap }, { name: "Live Monitoring", icon: Activity }, { name: "Map View", icon: Map }] },
   { label: "OPERATIONS", items: [{ name: "Faults & Alerts", icon: AlertTriangle, count: "4" }, { name: "Maintenance", icon: Wrench }, { name: "Charging Sessions", icon: ClipboardList }] },
@@ -76,6 +100,31 @@ export default function Home() {
   const [stations, setStations] = useState<Station[]>([]);
   const [stationsLoading, setStationsLoading] = useState(true);
   const [stationsError, setStationsError] = useState("");
+  const [databaseChargers, setDatabaseChargers] = useState<DatabaseCharger[]>([]);
+  const [chargersLoading, setChargersLoading] = useState(true);
+  const [chargersError, setChargersError] = useState("");
+  const [databaseConnectors, setDatabaseConnectors] = useState<DatabaseConnector[]>([]);
+  const [connectorsLoading, setConnectorsLoading] = useState(true);
+  const [connectorsError, setConnectorsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async <T,>(url: string, setter: (rows: T[]) => void, setLoading: (value: boolean) => void, setError: (value: string) => void) => {
+      setLoading(true); setError("");
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        const data: unknown = await response.json();
+        if (!Array.isArray(data)) throw new Error(`The ${url} API returned an unexpected response.`);
+        if (!cancelled) setter(data as T[]);
+      } catch (error) {
+        if (!cancelled) setError(error instanceof Error ? error.message : `Could not load ${url} records.`);
+      } finally { if (!cancelled) setLoading(false); }
+    };
+    void load<DatabaseCharger>("/api/chargers", setDatabaseChargers, setChargersLoading, setChargersError);
+    void load<DatabaseConnector>("/api/connectors", setDatabaseConnectors, setConnectorsLoading, setConnectorsError);
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,8 +178,8 @@ export default function Home() {
     <div className="network-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>Your network is moving Qatar forward.</strong><p>22 of 24 chargers online · 12 sessions charging now · 4 connectors need attention</p></div><button className="light-button" onClick={() => setPage("Live Monitoring")}><ArrowRight size={14}/> View live monitoring</button></div>
     <div className="metric-grid">
       <Metric title="Total Stations" value={stationsLoading ? "—" : stationsError ? "—" : String(stations.length)} sub={stationsLoading ? "Loading database records" : stationsError ? "Database unavailable" : "Live station records"}/>
-      <Metric title="Total Chargers" value="24" sub="22 online · 2 unavailable"/>
-      <Metric title="Available Connectors" value="30 / 48" sub="12 charging · 6 unavailable"/>
+      <Metric title="Total Chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.length)} sub={chargersLoading ? "Loading database records" : chargersError ? "Database unavailable" : "Live charger records"}/>
+      <Metric title="Connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.length)} sub={connectorsLoading ? "Loading database records" : connectorsError ? "Database unavailable" : "Live connector records"}/>
       <Metric title="Active Sessions" value="12" sub="Live snapshot · 14:32 AST"/>
       <Metric title="Network Uptime" value="99.2%" sub="+0.4 pp vs prior period"/>
       <Metric title="Energy Delivered" value="48,620 kWh" sub="+12.8% vs prior period"/>
@@ -157,24 +206,38 @@ export default function Home() {
   const renderChargers = () => <div className="page-content">
     <div className="page-heading"><div><h1>Chargers</h1><p>Hardware inventory, connectivity and firmware across your network.</p></div><div className="heading-actions"><button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16}/> Add charger</button></div></div>
     <div className="metric-grid charger-metrics">
-      <Metric title="Installed chargers" value="24" sub="4 chargers at each station"/>
-      <Metric title="Online chargers" value="22 / 24" sub="91.7% currently connected"/>
-      <Metric title="Faulted chargers" value="1" sub="Q003-CH02 · 2 connectors"/>
-      <Metric title="Firmware compliance" value="87.5%" sub="21 of 24 on version 4.2.1"/>
+      <Metric title="Installed chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.length)} sub="Live database records"/>
+      <Metric title="Available / online" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.filter(c => /available|online|charging|connected/i.test(c.status || "")).length)} sub="Based on charger status"/>
+      <Metric title="Faulted chargers" value={chargersLoading ? "—" : chargersError ? "—" : String(databaseChargers.filter(c => /fault|error|failed/i.test(c.status || "")).length)} sub="Based on charger status"/>
+      <Metric title="Total rated power" value={chargersLoading ? "—" : chargersError ? "—" : `${databaseChargers.reduce((sum, c) => sum + (Number(c.max_power_kw) || 0), 0)} kW`} sub="Sum of max_power_kw"/>
     </div>
     <section className="panel inventory-panel">
-      <div className="panel-head"><h3>Charger inventory</h3><span>120 kW DC · Dual CCS2</span></div>
-      <div className="tabs">{["All chargers", "Online", "Offline", "Maintenance"].map(tab => <button key={tab} className={chargerTab === tab ? "tab active" : "tab"} onClick={() => setChargerTab(tab)}>{tab}<span>{tab === "All chargers" ? "24" : tab === "Online" ? "22" : tab === "Offline" ? "1" : "1"}</span></button>)}</div>
-      <div className="toolbar"><label className="search-box"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search charger ID or serial..."/>{query && <button onClick={() => setQuery("")} aria-label="Clear search"><X size={14}/></button>}</label><label className="select-wrap"><select value={stationFilter} onChange={e => setStationFilter(e.target.value)}><option>All stations</option><option>Msheireb Central</option><option>Lusail Marina</option><option>West Bay</option><option>Education City</option><option>Al Wakrah Hub</option><option>Airport Gateway</option></select><ChevronDown size={13}/></label><label className="select-wrap"><select value={firmwareFilter} onChange={e => setFirmwareFilter(e.target.value)}><option>All firmware</option><option>4.2.1</option><option>4.1.8</option></select><ChevronDown size={13}/></label><div className="toolbar-spacer"/><button className={`outline-button ${showFilters ? "selected" : ""}`} onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={14}/> Filters</button><button className="icon-button" onClick={exportCsv} aria-label="Export charger list"><ArrowDownToLine size={16}/></button></div>
+      <div className="panel-head"><h3>Charger inventory</h3><span>Live data from public.chargers</span></div>
+      <div className="tabs">{["All chargers", "Online", "Offline", "Maintenance"].map(tab => <button key={tab} className={chargerTab === tab ? "tab active" : "tab"} onClick={() => setChargerTab(tab)}>{tab}<span>{chargersLoading ? "—" : databaseChargers.filter(c => tab === "All chargers" || (tab === "Online" && /available|online|charging|connected/i.test(c.status || "")) || (tab === "Offline" && /offline|disconnected/i.test(c.status || "")) || (tab === "Maintenance" && /maintenance/i.test(c.status || ""))).length}</span></button>)}</div>
+      <div className="toolbar"><label className="search-box"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search charger ID or serial..."/>{query && <button onClick={() => setQuery("")} aria-label="Clear search"><X size={14}/></button>}</label><label className="select-wrap"><select value={stationFilter} onChange={e => setStationFilter(e.target.value)}><option>All stations</option>{stations.map(s => <option key={String(s.id)} value={String(s.id)}>{s.name}</option>)}</select><ChevronDown size={13}/></label><label className="select-wrap"><select value={firmwareFilter} onChange={e => setFirmwareFilter(e.target.value)}><option>All firmware</option><option>4.2.1</option><option>4.1.8</option></select><ChevronDown size={13}/></label><div className="toolbar-spacer"/><button className={`outline-button ${showFilters ? "selected" : ""}`} onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={14}/> Filters</button><button className="icon-button" onClick={exportCsv} aria-label="Export charger list"><ArrowDownToLine size={16}/></button></div>
       {showFilters && <div className="filter-note"><Filter size={14}/> Filters apply immediately. Use the station and firmware menus to narrow the inventory. <button onClick={() => { setStationFilter("All stations"); setFirmwareFilter("All firmware"); setQuery(""); setChargerTab("All chargers"); }}>Clear all</button></div>}
-      <div className="table-wrap"><table><thead><tr><th>CHARGER ID</th><th>STATION</th><th>OPERATING STATE</th><th>PORTS IN USE</th><th>FIRMWARE</th><th>LAST HEARTBEAT</th><th></th></tr></thead><tbody>{filteredChargers.map(c => <tr key={c.id} onClick={() => setSelectedCharger(c)} className="clickable-row"><td><strong>{c.id}</strong></td><td>{c.station}</td><td><StatusPill status={c.state}/></td><td>{c.ports}</td><td>{c.firmware}</td><td>{c.heartbeat}</td><td><button className="row-more" aria-label={`Details for ${c.id}`} onClick={e => { e.stopPropagation(); setSelectedCharger(c); }}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table>{filteredChargers.length === 0 && <div className="empty-state"><Search size={22}/><strong>No chargers match your filters</strong><p>Try another search term or clear your filters.</p></div>}</div>
-      <div className="table-foot">Showing {filteredChargers.length} of 24 chargers · 6 stations <span>‹　1　›</span></div>
+      <div className="table-wrap"><table><thead><tr><th>CHARGER ID / NAME</th><th>STATION ID</th><th>MANUFACTURER</th><th>MODEL</th><th>SERIAL NUMBER</th><th>MAX POWER</th><th>STATUS</th><th>PROTOCOL</th></tr></thead><tbody>{databaseChargers.filter(c => { const matchesTab = chargerTab === "All chargers" || (chargerTab === "Online" && /available|online|charging|connected/i.test(c.status || "")) || (chargerTab === "Offline" && /offline|disconnected/i.test(c.status || "")) || (chargerTab === "Maintenance" && /maintenance/i.test(c.status || "")); const text = `${c.id} ${c.name || ""} ${c.station_id || ""} ${c.manufacturer || ""} ${c.model || ""} ${c.serial_number || ""} ${c.status || ""} ${c.protocol || ""}`.toLowerCase(); return matchesTab && text.includes(query.toLowerCase()) && (stationFilter === "All stations" || String(c.station_id || "") === stationFilter || String(c.station_id || "").includes(stationFilter)); }).map(c => <tr key={String(c.id)} className="clickable-row"><td><strong>{c.name || `Charger ${c.id}`}</strong><small className="muted" style={{display:"block"}}>ID: {c.id}</small></td><td>{c.station_id ?? "—"}</td><td>{c.manufacturer || "—"}</td><td>{c.model || "—"}</td><td>{c.serial_number || "—"}</td><td>{c.max_power_kw == null ? "—" : `${c.max_power_kw} kW`}</td><td><StatusPill status={c.status || "Unknown"}/></td><td>{c.protocol || "—"}{c.protocol_identity ? <small className="muted" style={{display:"block"}}>{c.protocol_identity}</small> : null}</td></tr>)}</tbody></table>{chargersLoading && <div className="empty-state">Loading charger records…</div>}{chargersError && <div className="empty-state"><CircleAlert size={22}/><strong>Could not load chargers</strong><p>{chargersError}. Check that /api/chargers is configured.</p></div>}{!chargersLoading && !chargersError && databaseChargers.length === 0 && <div className="empty-state"><PlugZap size={22}/><strong>No charger records found</strong><p>Your database returned no chargers.</p></div>}</div>
+      <div className="table-foot">{chargersLoading ? "Loading charger records…" : chargersError ? "Charger data unavailable" : `Showing ${databaseChargers.length} database charger records`}</div>
     </section>
     <div className="bottom-info-grid">
       <section className="panel firmware-panel"><div className="panel-head"><h3>Firmware deployment</h3><span>Current target · 4.2.1</span></div><div className="firmware-row"><div><span>Version 4.2.1</span><strong>21 chargers</strong></div><div className="progress-track"><i style={{width:"87.5%"}}/></div></div><div className="firmware-row"><div><span>Version 4.1.8</span><strong>3 chargers</strong></div><div className="progress-track"><i style={{width:"12.5%"}}/></div></div><div className="info-callout"><CircleHelp size={16}/><div><strong>Next maintenance window</strong><p>Update the remaining 3 chargers after fault clearance. Scheduled 24 Oct, 02:00–04:00 AST.</p></div></div></section>
       <section className="panel hardware-panel"><div className="panel-head"><h3>Hardware profile</h3><span>Standard network configuration</span></div><div className="spec-head"><span>SPECIFICATION</span><span>VALUE</span></div><Spec label="Rated output" value="120 kW DC per charger"/><Spec label="Connector configuration" value="2 × CCS2 · Shared power"/><Spec label="Communication protocol" value="OCPP 1.6J · TLS enabled"/><Spec label="Asset naming" value="Q001-CH01 through Q006-CH04"/><div className="table-foot">All hardware specifications are illustrative <span>‹　1　›</span></div></section>
     </div>
     <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
+  </div>;
+
+  const renderConnectors = () => <div className="page-content">
+    <div className="page-heading"><div><h1>Connectors</h1><p>Connector inventory loaded from your database.</p></div><div className="heading-actions"><button className="outline-button" onClick={() => window.location.reload()}><Activity size={14}/> Refresh data</button></div></div>
+    <div className="metric-grid charger-metrics">
+      <Metric title="Total connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.length)} sub="Live database records"/>
+      <Metric title="Rated connector power" value={connectorsLoading ? "—" : connectorsError ? "—" : `${databaseConnectors.reduce((sum, c) => sum + (Number(c.max_power_kw) || 0), 0)} kW`} sub="Sum of max_power_kw"/>
+      <Metric title="Available connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.filter(c => /available|online|ready/i.test(c.status || "")).length)} sub="Based on connector status"/>
+      <Metric title="Faulted connectors" value={connectorsLoading ? "—" : connectorsError ? "—" : String(databaseConnectors.filter(c => /fault|error|failed/i.test(c.status || "")).length)} sub="Based on connector status"/>
+    </div>
+    <section className="panel inventory-panel"><div className="panel-head"><h3>Connector inventory</h3><span>Live data from public.connectors</span></div>
+      <div className="table-wrap"><table><thead><tr><th>CONNECTOR ID</th><th>CHARGER ID</th><th>CONNECTOR NUMBER</th><th>TYPE</th><th>MAX POWER</th><th>STATUS</th><th>UPDATED</th></tr></thead><tbody>{databaseConnectors.map(c => <tr key={String(c.id)}><td><strong>{c.id}</strong></td><td>{c.charger_id}</td><td>{c.connector_number ?? "—"}</td><td>{c.connector_type || "—"}</td><td>{c.max_power_kw == null ? "—" : `${c.max_power_kw} kW`}</td><td><StatusPill status={c.status || "Unknown"}/></td><td>{c.updated_at ? new Date(c.updated_at).toLocaleString() : "—"}</td></tr>)}</tbody></table>{connectorsLoading && <div className="empty-state">Loading connector records…</div>}{connectorsError && <div className="empty-state"><CircleAlert size={22}/><strong>Could not load connectors</strong><p>{connectorsError}. Check that /api/connectors is configured.</p></div>}{!connectorsLoading && !connectorsError && databaseConnectors.length === 0 && <div className="empty-state"><Zap size={22}/><strong>No connector records found</strong><p>Your database returned no connectors.</p></div>}</div>
+      <div className="table-foot">{connectorsLoading ? "Loading connector records…" : connectorsError ? "Connector data unavailable" : `Showing ${databaseConnectors.length} database connector records`}</div>
+    </section><footer>Connector details are read from the database; session telemetry remains separate.</footer>
   </div>;
 
   const renderGeneric = () => <div className="page-content generic-page"><div className="page-heading"><div><h1>{page}</h1><p>Manage and monitor your Be-Electric charging network.</p></div><button className="primary-button" onClick={() => toast(`${page} action is a demo in this prototype.`)}><Plus size={15}/> Create new</button></div><div className="generic-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>{page} workspace</strong><p>This section is included in the navigation prototype. The dashboard and charger inventory are implemented with sample data.</p></div></div><div className="generic-cards"><div className="panel"><Activity/><h3>Network status</h3><strong>Operational</strong><p>22 of 24 chargers online</p></div><div className="panel"><AlertTriangle/><h3>Items requiring attention</h3><strong>4 open alerts</strong><p>Review fault and maintenance queues</p></div><div className="panel"><Clock3/><h3>Last update</h3><strong>14:32 AST</strong><p>Illustrative sample telemetry</p></div></div><section className="panel generic-table"><div className="panel-head"><h3>Quick overview</h3><span>Illustrative demo data</span></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => toast(`${station} selected.`)}/></section><footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer></div>;
@@ -345,7 +408,7 @@ export default function Home() {
     {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation"/>}
     <main className="main-area">
       <header className="topbar"><div className="breadcrumb"><button className="menu-toggle" onClick={() => setMobileNav(true)}><Menu size={19}/></button><span>Workspace</span><span className="crumb-slash">/</span><strong>{page}</strong></div><div className="topbar-right"><span className="demo-tag">Demo data · Illustrative only</span><button className="bell-button" onClick={() => setPage("Faults & Alerts")} aria-label="Notifications"><Bell size={17}/><i/></button><div className="avatar">AM</div><button className="profile-button" onClick={() => setPage("Users & Roles")}><strong>Aisha Mansour</strong><small>Network administrator</small><ChevronDown size={13}/></button></div></header>
-      {page === "Dashboard" ? renderDashboard() : page === "Chargers" ? renderChargers() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
+      {page === "Dashboard" ? renderDashboard() : page === "Chargers" ? renderChargers() : page === "Connectors" ? renderConnectors() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
     </main>
     {notice && <div className="toast"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")}><X size={14}/></button></div>}
     {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-head"><div><h2>Add charger</h2><p>Register a charger in the network inventory.</p></div><button className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>Charger ID<input placeholder="e.g. Q007-CH01"/></label><label>Station<select defaultValue=""><option value="" disabled>Select station</option>{stations.map(s => <option key={String(s.id)}>{s.id} · {s.name}</option>)}</select></label><label>Firmware version<select defaultValue="4.2.1"><option>4.2.1</option><option>4.1.8</option></select></label><div className="modal-actions"><button className="outline-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" onClick={() => { setShowAdd(false); toast("Demo only: charger form submitted. No database is connected."); }}>Register charger</button></div><p className="modal-note">Demo prototype — this form does not save to a backend.</p></div></div>}
