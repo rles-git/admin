@@ -118,40 +118,45 @@ export default function Home() {
     toast("Charger inventory exported.");
   };
 
+  const numericValue = (value: number | string | null | undefined): number => {
+    if (value === null || value === undefined || value === "") return 0;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const totalPlugs = stations.reduce((sum, station) => sum + numericValue(station.plugs), 0);
+  const availablePlugs = stations.reduce((sum, station) => sum + numericValue(station.available), 0);
+  const plugsWithAvailability = stations.filter(station => station.available !== null && station.available !== undefined).length;
+  const unavailablePlugs = Math.max(0, totalPlugs - availablePlugs);
+  const availabilityPercent = totalPlugs > 0 ? Math.min(100, Math.round((availablePlugs / totalPlugs) * 100)) : 0;
+  const stationTypes = Array.from(new Set(stations.map(station => station.kind).filter((kind): kind is string => Boolean(kind))));
+  const totalRatedPower = stations.reduce((sum, station) => sum + numericValue(station.power), 0);
+
   const renderDashboard = () => <div className="page-content">
     <div className="page-heading">
-      <div><h1>Network at a glance</h1><p>A clear view of your charging network, from connection to impact.</p></div>
+      <div><h1>Network at a glance</h1><p>Live summary calculated from station records in your database.</p></div>
       <div className="heading-actions">
-        <button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button>
-        <button className="primary-button" onClick={exportCsv}><Download size={15}/> Export report</button>
+        <button className="outline-button" onClick={() => window.location.reload()}><Activity size={15}/> Refresh data</button>
+        <button className="primary-button" onClick={() => setPage("Stations")}><Map size={15}/> View stations</button>
       </div>
     </div>
-    <div className="network-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>Your network is moving Qatar forward.</strong><p>22 of 24 chargers online · 12 sessions charging now · 4 connectors need attention</p></div><button className="light-button" onClick={() => setPage("Live Monitoring")}><ArrowRight size={14}/> View live monitoring</button></div>
+    <div className="network-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>{stationsLoading ? "Loading your station network…" : stationsError ? "Station data could not be loaded" : `${stations.length} station${stations.length === 1 ? "" : "s"} found in your database`}</strong><p>{stationsLoading ? "Fetching the latest records from Neon." : stationsError ? stationsError : `${availablePlugs} available plugs recorded · ${totalPlugs} total plugs recorded`}</p></div><button className="light-button" onClick={() => setPage("Stations")}><ArrowRight size={14}/> Open station inventory</button></div>
+    {stationsError && <div className="filter-note"><CircleAlert size={15}/> Could not fetch database records. Check the /api/stations endpoint and the DATABASE_URL configured in Vercel.</div>}
     <div className="metric-grid">
-      <Metric title="Total Stations" value="6" sub="Across 4 municipalities"/>
-      <Metric title="Total Chargers" value="24" sub="22 online · 2 unavailable"/>
-      <Metric title="Available Connectors" value="30 / 48" sub="12 charging · 6 unavailable"/>
-      <Metric title="Active Sessions" value="12" sub="Live snapshot · 14:32 AST"/>
-      <Metric title="Network Uptime" value="99.2%" sub="+0.4 pp vs prior period"/>
-      <Metric title="Energy Delivered" value="48,620 kWh" sub="+12.8% vs prior period"/>
-      <Metric title="Estimated CO₂ Avoided" value="20.4 t" sub="Estimate · 0.42 kg / kWh"/>
-      <Metric title="Charging Revenue" value="QAR 58,344" sub="1,824 completed sessions"/>
+      <Metric title="Total Stations" value={stationsLoading ? "—" : stations.length.toLocaleString()} sub="Records returned by database"/>
+      <Metric title="Total Plugs" value={stationsLoading ? "—" : totalPlugs.toLocaleString()} sub="Sum of station plugs values"/>
+      <Metric title="Available Plugs" value={stationsLoading ? "—" : availablePlugs.toLocaleString()} sub="Sum of station available values"/>
+      <Metric title="Unavailable Plugs" value={stationsLoading ? "—" : unavailablePlugs.toLocaleString()} sub="Total plugs minus available plugs"/>
+      <Metric title="Plug Availability" value={stationsLoading || totalPlugs === 0 ? "—" : `${availabilityPercent}%`} sub="Calculated from station records"/>
+      <Metric title="Rated Power" value={stationsLoading ? "—" : totalRatedPower ? `${totalRatedPower.toLocaleString()} kW` : "—"} sub="Sum where power is numeric"/>
+      <Metric title="Station Types" value={stationsLoading ? "—" : stationTypes.length.toLocaleString()} sub={stationTypes.length ? stationTypes.join(", ") : "No type values recorded"}/>
+      <Metric title="Stations with Availability" value={stationsLoading ? "—" : plugsWithAvailability.toLocaleString()} sub="Records containing an available value"/>
     </div>
     <div className="analytics-grid">
-      <section className="panel energy-panel"><div className="panel-head"><h3>Energy consumption</h3><span>01–20 Oct</span></div><div className="chart-summary"><strong>48,620</strong><span>kWh</span><small>↗ 12.8% vs prior period</small></div><Sparkline/><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div></section>
-      <section className="panel health-panel"><div className="panel-head"><h3>Network health</h3><span>Live snapshot</span></div><div className="health-score">99.2% <StatusPill status="Within target"/></div><p className="muted tiny">Availability target ≥ 99.0% · period average</p><Progress label="Available connectors" value="30 of 48" percent={62.5}/><Progress label="Charging connectors" value="12 of 48" percent={25}/><Progress label="Faulted / maintenance" value="6 of 48" percent={12.5}/><p className="muted tiny health-foot"><span className="live-dot"/> Last telemetry received 8 seconds ago</p></section>
+      <section className="panel energy-panel"><div className="panel-head"><h3>Station availability</h3><span>Database snapshot</span></div><div className="chart-summary"><strong>{stationsLoading ? "—" : availablePlugs.toLocaleString()}</strong><span>available plugs</span></div><div className="progress-item"><div><span>Available plugs</span><strong>{stationsLoading || totalPlugs === 0 ? "—" : `${availablePlugs} / ${totalPlugs}`}</strong></div><div className="progress-track"><i style={{width: `${stationsLoading ? 0 : availabilityPercent}%`}}/></div></div><div className="chart-axis"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><p className="muted tiny">This indicator is derived from the <code>available</code> and <code>plugs</code> columns. It is not charger telemetry.</p></section>
+      <section className="panel health-panel"><div className="panel-head"><h3>Database coverage</h3><span>Station records</span></div><div className="health-score">{stationsLoading ? "—" : stations.length} <span className="muted tiny">stations</span></div><p className="muted tiny">Fields present in the returned records</p><Progress label="Records with address" value={stationsLoading ? "—" : `${stations.filter(s => Boolean(s.address)).length} of ${stations.length}`} percent={stations.length ? Math.round(stations.filter(s => Boolean(s.address)).length / stations.length * 100) : 0}/><Progress label="Records with coordinates" value={stationsLoading ? "—" : `${stations.filter(s => s.lat != null && s.lng != null).length} of ${stations.length}`} percent={stations.length ? Math.round(stations.filter(s => s.lat != null && s.lng != null).length / stations.length * 100) : 0}/><Progress label="Records with type" value={stationsLoading ? "—" : `${stations.filter(s => Boolean(s.kind)).length} of ${stations.length}`} percent={stations.length ? Math.round(stations.filter(s => Boolean(s.kind)).length / stations.length * 100) : 0}/></section>
     </div>
-    <div className="mini-chart-grid">
-      <MiniChart title="Charging sessions" value="1,824" sub="completed" variant={1}/>
-      <MiniChart title="Charging revenue" value="58,344" sub="QAR" variant={2}/>
-      <MiniChart title="Estimated CO₂ avoided" value="20.4" sub="tonnes" variant={3}/>
-    </div>
-    <div className="two-panel-grid">
-      <section className="panel"><div className="panel-head"><h3>Recent faults</h3><button className="text-button" onClick={() => setPage("Faults & Alerts")}>4 open · View all <ArrowRight size={12}/></button></div><div className="fault-row"><span className="severity critical">Critical</span><div><strong>Q003-CH02 · Connector temperature</strong><p>14:18 · Assigned to Omar Khalid</p></div></div><div className="fault-row"><span className="severity warning">Warning</span><div><strong>Q006-CH04 · Communication lost</strong><p>13:52 · Assigned to Sara Ali</p></div></div></section>
-      <section className="panel"><div className="panel-head"><h3>Maintenance reminders</h3><span>Next 7 days</span></div><div className="maintenance-row"><span className="date-chip">21 OCT</span><div><strong>Q005 · Cooling system service</strong><p>WO-104 · Sara Ali · 09:00–11:00</p></div></div><div className="maintenance-row"><span className="date-chip">23 OCT</span><div><strong>Q002 · Preventive inspection</strong><p>WO-105 · Omar Khalid · 08:00–10:00</p></div></div></section>
-    </div>
-    <section className="panel station-performance"><div className="panel-head"><h3>Station performance</h3><button className="text-button" onClick={() => setPage("Stations")}>Month to date · View stations <ArrowRight size={12}/></button></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => { setPage("Stations"); toast(`${station} selected.`); }}/><div className="table-foot">{stationsLoading ? "Loading stations…" : `${stations.length} stations from database`} <span>‹　1　›</span></div></section>
-    <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
+    <section className="panel station-performance"><div className="panel-head"><h3>Stations from database</h3><button className="text-button" onClick={() => setPage("Stations")}>View all stations <ArrowRight size={12}/></button></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => { setPage("Stations"); toast(`${station} selected.`); }}/><div className="table-foot">{stationsLoading ? "Loading stations…" : stationsError ? "Database request failed" : `${stations.length} station records loaded`} <span>Neon database</span></div></section>
+    <footer>Be-Electric · Dashboard summary derived from station database records <span>{stationsLoading ? "Loading…" : stationsError ? "Data unavailable" : "Live data from /api/stations"}</span></footer>
   </div>;
 
   const renderChargers = () => <div className="page-content">
