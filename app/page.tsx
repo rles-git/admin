@@ -84,17 +84,17 @@ export default function Home() {
       setStationsError("");
       try {
         const response = await fetch("/api/stations", { cache: "no-store" });
-        if (!response.ok) throw new Error(`Unable to load stations (HTTP ${response.status}).`);
-        const data = await response.json();
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        const data: unknown = await response.json();
         if (!Array.isArray(data)) throw new Error("The stations API returned an unexpected response.");
-        if (!cancelled) setStations(data);
+        if (!cancelled) setStations(data as Station[]);
       } catch (error) {
-        if (!cancelled) setStationsError(error instanceof Error ? error.message : "Unable to load stations.");
+        if (!cancelled) setStationsError(error instanceof Error ? error.message : "Could not load station records.");
       } finally {
         if (!cancelled) setStationsLoading(false);
       }
     };
-    loadStations();
+    void loadStations();
     return () => { cancelled = true; };
   }, []);
 
@@ -118,45 +118,40 @@ export default function Home() {
     toast("Charger inventory exported.");
   };
 
-  const numericValue = (value: number | string | null | undefined): number => {
-    if (value === null || value === undefined || value === "") return 0;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-  const totalPlugs = stations.reduce((sum, station) => sum + numericValue(station.plugs), 0);
-  const availablePlugs = stations.reduce((sum, station) => sum + numericValue(station.available), 0);
-  const plugsWithAvailability = stations.filter(station => station.available !== null && station.available !== undefined).length;
-  const unavailablePlugs = Math.max(0, totalPlugs - availablePlugs);
-  const availabilityPercent = totalPlugs > 0 ? Math.min(100, Math.round((availablePlugs / totalPlugs) * 100)) : 0;
-  const stationTypes = Array.from(new Set(stations.map(station => station.kind).filter((kind): kind is string => Boolean(kind))));
-  const totalRatedPower = stations.reduce((sum, station) => sum + numericValue(station.power), 0);
-
   const renderDashboard = () => <div className="page-content">
     <div className="page-heading">
-      <div><h1>Network at a glance</h1><p>Live summary calculated from station records in your database.</p></div>
+      <div><h1>Network at a glance</h1><p>A clear view of your charging network, from connection to impact.</p></div>
       <div className="heading-actions">
-        <button className="outline-button" onClick={() => window.location.reload()}><Activity size={15}/> Refresh data</button>
-        <button className="primary-button" onClick={() => setPage("Stations")}><Map size={15}/> View stations</button>
+        <button className="date-button" onClick={() => setDateRange(dateRange === "01–20 Oct 2026" ? "Last 7 days" : "01–20 Oct 2026")}><CalendarDays size={15}/>{dateRange}<ChevronDown size={13}/></button>
+        <button className="primary-button" onClick={exportCsv}><Download size={15}/> Export report</button>
       </div>
     </div>
-    <div className="network-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>{stationsLoading ? "Loading your station network…" : stationsError ? "Station data could not be loaded" : `${stations.length} station${stations.length === 1 ? "" : "s"} found in your database`}</strong><p>{stationsLoading ? "Fetching the latest records from Neon." : stationsError ? stationsError : `${availablePlugs} available plugs recorded · ${totalPlugs} total plugs recorded`}</p></div><button className="light-button" onClick={() => setPage("Stations")}><ArrowRight size={14}/> Open station inventory</button></div>
-    {stationsError && <div className="filter-note"><CircleAlert size={15}/> Could not fetch database records. Check the /api/stations endpoint and the DATABASE_URL configured in Vercel.</div>}
+    <div className="network-banner"><div className="banner-icon"><Activity size={20}/></div><div><strong>Your network is moving Qatar forward.</strong><p>22 of 24 chargers online · 12 sessions charging now · 4 connectors need attention</p></div><button className="light-button" onClick={() => setPage("Live Monitoring")}><ArrowRight size={14}/> View live monitoring</button></div>
     <div className="metric-grid">
-      <Metric title="Total Stations" value={stationsLoading ? "—" : stations.length.toLocaleString()} sub="Records returned by database"/>
-      <Metric title="Total Plugs" value={stationsLoading ? "—" : totalPlugs.toLocaleString()} sub="Sum of station plugs values"/>
-      <Metric title="Available Plugs" value={stationsLoading ? "—" : availablePlugs.toLocaleString()} sub="Sum of station available values"/>
-      <Metric title="Unavailable Plugs" value={stationsLoading ? "—" : unavailablePlugs.toLocaleString()} sub="Total plugs minus available plugs"/>
-      <Metric title="Plug Availability" value={stationsLoading || totalPlugs === 0 ? "—" : `${availabilityPercent}%`} sub="Calculated from station records"/>
-      <Metric title="Rated Power" value={stationsLoading ? "—" : totalRatedPower ? `${totalRatedPower.toLocaleString()} kW` : "—"} sub="Sum where power is numeric"/>
-      <Metric title="Station Types" value={stationsLoading ? "—" : stationTypes.length.toLocaleString()} sub={stationTypes.length ? stationTypes.join(", ") : "No type values recorded"}/>
-      <Metric title="Stations with Availability" value={stationsLoading ? "—" : plugsWithAvailability.toLocaleString()} sub="Records containing an available value"/>
+      <Metric title="Total Stations" value={stationsLoading ? "—" : stationsError ? "—" : String(stations.length)} sub={stationsLoading ? "Loading database records" : stationsError ? "Database unavailable" : "Live station records"}/>
+      <Metric title="Total Chargers" value="24" sub="22 online · 2 unavailable"/>
+      <Metric title="Available Connectors" value="30 / 48" sub="12 charging · 6 unavailable"/>
+      <Metric title="Active Sessions" value="12" sub="Live snapshot · 14:32 AST"/>
+      <Metric title="Network Uptime" value="99.2%" sub="+0.4 pp vs prior period"/>
+      <Metric title="Energy Delivered" value="48,620 kWh" sub="+12.8% vs prior period"/>
+      <Metric title="Estimated CO₂ Avoided" value="20.4 t" sub="Estimate · 0.42 kg / kWh"/>
+      <Metric title="Charging Revenue" value="QAR 58,344" sub="1,824 completed sessions"/>
     </div>
     <div className="analytics-grid">
-      <section className="panel energy-panel"><div className="panel-head"><h3>Station availability</h3><span>Database snapshot</span></div><div className="chart-summary"><strong>{stationsLoading ? "—" : availablePlugs.toLocaleString()}</strong><span>available plugs</span></div><div className="progress-item"><div><span>Available plugs</span><strong>{stationsLoading || totalPlugs === 0 ? "—" : `${availablePlugs} / ${totalPlugs}`}</strong></div><div className="progress-track"><i style={{width: `${stationsLoading ? 0 : availabilityPercent}%`}}/></div></div><div className="chart-axis"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><p className="muted tiny">This indicator is derived from the <code>available</code> and <code>plugs</code> columns. It is not charger telemetry.</p></section>
-      <section className="panel health-panel"><div className="panel-head"><h3>Database coverage</h3><span>Station records</span></div><div className="health-score">{stationsLoading ? "—" : stations.length} <span className="muted tiny">stations</span></div><p className="muted tiny">Fields present in the returned records</p><Progress label="Records with address" value={stationsLoading ? "—" : `${stations.filter(s => Boolean(s.address)).length} of ${stations.length}`} percent={stations.length ? Math.round(stations.filter(s => Boolean(s.address)).length / stations.length * 100) : 0}/><Progress label="Records with coordinates" value={stationsLoading ? "—" : `${stations.filter(s => s.lat != null && s.lng != null).length} of ${stations.length}`} percent={stations.length ? Math.round(stations.filter(s => s.lat != null && s.lng != null).length / stations.length * 100) : 0}/><Progress label="Records with type" value={stationsLoading ? "—" : `${stations.filter(s => Boolean(s.kind)).length} of ${stations.length}`} percent={stations.length ? Math.round(stations.filter(s => Boolean(s.kind)).length / stations.length * 100) : 0}/></section>
+      <section className="panel energy-panel"><div className="panel-head"><h3>Energy consumption</h3><span>01–20 Oct</span></div><div className="chart-summary"><strong>48,620</strong><span>kWh</span><small>↗ 12.8% vs prior period</small></div><Sparkline/><div className="chart-axis"><span>01 Oct</span><span>05 Oct</span><span>10 Oct</span><span>15 Oct</span><span>20 Oct</span></div></section>
+      <section className="panel health-panel"><div className="panel-head"><h3>Network health</h3><span>Live snapshot</span></div><div className="health-score">99.2% <StatusPill status="Within target"/></div><p className="muted tiny">Availability target ≥ 99.0% · period average</p><Progress label="Available connectors" value="30 of 48" percent={62.5}/><Progress label="Charging connectors" value="12 of 48" percent={25}/><Progress label="Faulted / maintenance" value="6 of 48" percent={12.5}/><p className="muted tiny health-foot"><span className="live-dot"/> Last telemetry received 8 seconds ago</p></section>
     </div>
-    <section className="panel station-performance"><div className="panel-head"><h3>Stations from database</h3><button className="text-button" onClick={() => setPage("Stations")}>View all stations <ArrowRight size={12}/></button></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => { setPage("Stations"); toast(`${station} selected.`); }}/><div className="table-foot">{stationsLoading ? "Loading stations…" : stationsError ? "Database request failed" : `${stations.length} station records loaded`} <span>Neon database</span></div></section>
-    <footer>Be-Electric · Dashboard summary derived from station database records <span>{stationsLoading ? "Loading…" : stationsError ? "Data unavailable" : "Live data from /api/stations"}</span></footer>
+    <div className="mini-chart-grid">
+      <MiniChart title="Charging sessions" value="1,824" sub="completed" variant={1}/>
+      <MiniChart title="Charging revenue" value="58,344" sub="QAR" variant={2}/>
+      <MiniChart title="Estimated CO₂ avoided" value="20.4" sub="tonnes" variant={3}/>
+    </div>
+    <div className="two-panel-grid">
+      <section className="panel"><div className="panel-head"><h3>Recent faults</h3><button className="text-button" onClick={() => setPage("Faults & Alerts")}>4 open · View all <ArrowRight size={12}/></button></div><div className="fault-row"><span className="severity critical">Critical</span><div><strong>Q003-CH02 · Connector temperature</strong><p>14:18 · Assigned to Omar Khalid</p></div></div><div className="fault-row"><span className="severity warning">Warning</span><div><strong>Q006-CH04 · Communication lost</strong><p>13:52 · Assigned to Sara Ali</p></div></div></section>
+      <section className="panel"><div className="panel-head"><h3>Maintenance reminders</h3><span>Next 7 days</span></div><div className="maintenance-row"><span className="date-chip">21 OCT</span><div><strong>Q005 · Cooling system service</strong><p>WO-104 · Sara Ali · 09:00–11:00</p></div></div><div className="maintenance-row"><span className="date-chip">23 OCT</span><div><strong>Q002 · Preventive inspection</strong><p>WO-105 · Omar Khalid · 08:00–10:00</p></div></div></section>
+    </div>
+    <section className="panel station-performance"><div className="panel-head"><h3>Station performance</h3><button className="text-button" onClick={() => setPage("Stations")}>Month to date · View stations <ArrowRight size={12}/></button></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => { setPage("Stations"); toast(`${station} selected.`); }}/><div className="table-foot">{stationsLoading ? "Loading station records…" : stationsError ? `Could not load stations: ${stationsError}` : `${stations.length} station records from database`} <span>‹　1　›</span></div></section>
+    <footer>Be-Electric · Qatar network / All records are illustrative demo data <span>Snapshot: 20 Oct 2026, 14:32 AST</span></footer>
   </div>;
 
   const renderChargers = () => <div className="page-content">
@@ -350,7 +345,7 @@ export default function Home() {
     {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation"/>}
     <main className="main-area">
       <header className="topbar"><div className="breadcrumb"><button className="menu-toggle" onClick={() => setMobileNav(true)}><Menu size={19}/></button><span>Workspace</span><span className="crumb-slash">/</span><strong>{page}</strong></div><div className="topbar-right"><span className="demo-tag">Demo data · Illustrative only</span><button className="bell-button" onClick={() => setPage("Faults & Alerts")} aria-label="Notifications"><Bell size={17}/><i/></button><div className="avatar">AM</div><button className="profile-button" onClick={() => setPage("Users & Roles")}><strong>Aisha Mansour</strong><small>Network administrator</small><ChevronDown size={13}/></button></div></header>
-      {page === "Dashboard" ? renderDashboard() : page === "Stations" ? <div className="page-content"><div className="page-heading"><div><h1>Stations</h1><p>Live station records loaded from your database.</p></div><button className="outline-button" onClick={() => window.location.reload()}>Refresh</button></div><section className="panel inventory-panel"><div className="panel-head"><h3>Station inventory</h3><span>{stationsLoading ? "Loading…" : `${stations.length} records`}</span></div><StationsTable stations={stations} loading={stationsLoading} error={stationsError} onSelect={(station) => toast(`${station} selected.`)}/></section><footer>Be-Electric · Station records from configured database</footer></div> : page === "Chargers" ? renderChargers() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
+      {page === "Dashboard" ? renderDashboard() : page === "Chargers" ? renderChargers() : page === "Charging Sessions" ? renderChargingSessions() : page === "Revenue & Transactions" ? renderRevenue() : page === "Environmental Impact" ? renderEnvironmental() : renderGeneric()}
     </main>
     {notice && <div className="toast"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")}><X size={14}/></button></div>}
     {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-head"><div><h2>Add charger</h2><p>Register a charger in the network inventory.</p></div><button className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>Charger ID<input placeholder="e.g. Q007-CH01"/></label><label>Station<select defaultValue=""><option value="" disabled>Select station</option>{stations.map(s => <option key={String(s.id)}>{s.id} · {s.name}</option>)}</select></label><label>Firmware version<select defaultValue="4.2.1"><option>4.2.1</option><option>4.1.8</option></select></label><div className="modal-actions"><button className="outline-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" onClick={() => { setShowAdd(false); toast("Demo only: charger form submitted. No database is connected."); }}>Register charger</button></div><p className="modal-note">Demo prototype — this form does not save to a backend.</p></div></div>}
@@ -373,17 +368,7 @@ function StationsTable({ stations, loading, error, onSelect }: {
   error: string;
   onSelect: (name: string) => void;
 }) {
-  const formatValue = (value: string | number | null | undefined, suffix = "") =>
-    value === null || value === undefined || value === "" ? "—" : `${value}${suffix}`;
-
-  return <div className="table-wrap"><table><thead><tr><th>STATION / ID</th><th>ADDRESS</th><th>PLUGS</th><th>AVAILABLE</th><th>POWER</th><th>PRICE</th><th>TYPE</th></tr></thead><tbody>
-    {loading && <tr><td colSpan={7}>Loading stations from database…</td></tr>}
-    {!loading && error && <tr><td colSpan={7}>Could not load stations: {error}</td></tr>}
-    {!loading && !error && stations.length === 0 && <tr><td colSpan={7}>No stations found in the database.</td></tr>}
-    {!loading && !error && stations.map(s => <tr key={String(s.id)} className="clickable-row" onClick={() => onSelect(`${s.id} · ${s.name}`)}>
-      <td><strong>{s.id} · {s.shortName || s.name}</strong></td><td>{formatValue(s.address)}</td><td>{formatValue(s.plugs)}</td><td>{formatValue(s.available)}</td><td>{formatValue(s.power, typeof s.power === "number" || (typeof s.power === "string" && /^\d+(\.\d+)?$/.test(s.power)) ? " kW" : "")}</td><td>{formatValue(s.price, typeof s.price === "number" || (typeof s.price === "string" && /^\d+(\.\d+)?$/.test(s.price)) ? "" : "")}</td><td>{formatValue(s.kind)}</td>
-    </tr>)}
-  </tbody></table>{!loading && error && <div className="empty-state"><p>Check that the admin app has an <code>/api/stations</code> route configured to query Neon.</p></div>}</div>;
+  return <div className="table-wrap"><table><thead><tr><th>STATION / ID</th><th>ADDRESS</th><th>PLUGS</th><th>AVAILABLE</th><th>POWER</th><th>PRICE</th><th>TYPE</th></tr></thead><tbody>{stations.map(s => <tr key={String(s.id)} className="clickable-row" onClick={() => onSelect(`${s.id} · ${s.name}`)}><td><strong>{s.id} · {s.name}</strong>{s.shortName && <small className="muted" style={{display:"block"}}>{s.shortName}</small>}</td><td>{s.address || "—"}</td><td>{s.plugs ?? "—"}</td><td>{s.available ?? "—"}</td><td>{s.power == null ? "—" : `${s.power} kW`}</td><td>{s.price == null ? "—" : String(s.price)}</td><td>{s.kind || "—"}</td></tr>)}</tbody></table>{!loading && !error && stations.length === 0 && <div className="empty-state"><Map size={22}/><strong>No station records found</strong><p>Your database returned no stations.</p></div>}{loading && <div className="empty-state">Loading station records…</div>}{error && <div className="empty-state"><CircleAlert size={22}/><strong>Could not load stations</strong><p>{error}. Check that /api/stations is configured.</p></div>}</div>;
 }
 function Spec({ label, value }: { label: string; value: string }) {
   return <div className="spec-row"><strong>{label}</strong><span>{value}</span></div>;
