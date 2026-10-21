@@ -34,7 +34,7 @@ type Station = {
   address?: string | null;
   lat?: number | string | null;
   lng?: number | string | null;
-  plugs?: number | null;
+  chargers?: number | null;
   available?: number | null;
   power?: number | string | null;
   price?: number | string | null;
@@ -433,7 +433,7 @@ function StationsTable({ stations, loading, error, onSelect }: {
   error: string;
   onSelect: (name: string) => void;
 }) {
-  return <div className="table-wrap"><table><thead><tr><th>STATION / ID</th><th>ADDRESS</th><th>PLUGS</th><th>AVAILABLE</th><th>POWER</th><th>PRICE</th><th>TYPE</th></tr></thead><tbody>{stations.map(s => <tr key={String(s.id)} className="clickable-row" onClick={() => onSelect(`${s.id} · ${s.name}`)}><td><strong>{s.id} · {s.name}</strong>{s.shortName && <small className="muted" style={{display:"block"}}>{s.shortName}</small>}</td><td>{s.address || "—"}</td><td>{s.plugs ?? "—"}</td><td>{s.available ?? "—"}</td><td>{s.power == null ? "—" : `${s.power} kW`}</td><td>{s.price == null ? "—" : String(s.price)}</td><td>{s.kind || "—"}</td></tr>)}</tbody></table>{!loading && !error && stations.length === 0 && <div className="empty-state"><Map size={22}/><strong>No station records found</strong><p>Your database returned no stations.</p></div>}{loading && <div className="empty-state">Loading station records…</div>}{error && <div className="empty-state"><CircleAlert size={22}/><strong>Could not load stations</strong><p>{error}. Check that /api/stations is configured.</p></div>}</div>;
+  return <div className="table-wrap"><table><thead><tr><th>STATION / ID</th><th>ADDRESS</th><th>chargers</th><th>AVAILABLE</th><th>POWER</th><th>PRICE</th><th>TYPE</th></tr></thead><tbody>{stations.map(s => <tr key={String(s.id)} className="clickable-row" onClick={() => onSelect(`${s.id} · ${s.name}`)}><td><strong>{s.id} · {s.name}</strong>{s.shortName && <small className="muted" style={{display:"block"}}>{s.shortName}</small>}</td><td>{s.address || "—"}</td><td>{s.chargers ?? "—"}</td><td>{s.available ?? "—"}</td><td>{s.power == null ? "—" : `${s.power} kW`}</td><td>{s.price == null ? "—" : String(s.price)}</td><td>{s.kind || "—"}</td></tr>)}</tbody></table>{!loading && !error && stations.length === 0 && <div className="empty-state"><Map size={22}/><strong>No station records found</strong><p>Your database returned no stations.</p></div>}{loading && <div className="empty-state">Loading station records…</div>}{error && <div className="empty-state"><CircleAlert size={22}/><strong>Could not load stations</strong><p>{error}. Check that /api/stations is configured.</p></div>}</div>;
 }
 function Spec({ label, value }: { label: string; value: string }) {
   return <div className="spec-row"><strong>{label}</strong><span>{value}</span></div>;
