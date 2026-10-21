@@ -14,7 +14,7 @@ export async function GET() {
         address,
         lat,
         lng,
-        plugs,
+        chargers,
         available,
         power,
         price,
