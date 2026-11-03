@@ -1,4 +1,4 @@
-```tsx
+
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -49,7 +49,6 @@ export async function GET() {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
     });
-
   } catch (error) {
     console.error("Failed to load charging sessions:", error);
 
@@ -64,4 +63,3 @@ export async function GET() {
     );
   }
 }
-```
