@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -26,14 +27,24 @@ export async function GET() {
     `;
 
     return NextResponse.json(stations, {
-      headers: { "Cache-Control": "no-store" },
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
     });
   } catch (error) {
     console.error("Failed to fetch stations:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch stations." },
-      { status: 500 }
+      {
+        error: "Failed to fetch stations",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }
