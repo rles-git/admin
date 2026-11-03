@@ -7,35 +7,36 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    const chargers = await sql`
+    const stations = await sql`
       SELECT
         id,
-        station_id,
         name,
-        manufacturer,
-        model,
-        serial_number,
-        max_power_kw,
-        status,
-        protocol,
-        protocol_identity,
-        created_at,
-        updated_at
-      FROM public.chargers
+        short_name AS "shortName",
+        address,
+        lat,
+        lng,
+        chargers,
+        available,
+        power,
+        price,
+        kind,
+        distance,
+        minutes
+      FROM public.stations
       ORDER BY id ASC
     `;
 
-    return NextResponse.json(chargers, {
+    return NextResponse.json(stations, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
     });
   } catch (error) {
-    console.error("Failed to load chargers:", error);
+    console.error("Failed to fetch stations:", error);
 
     return NextResponse.json(
       {
-        error: "Failed to load chargers",
+        error: "Failed to fetch stations",
         details: error instanceof Error ? error.message : String(error),
       },
       {
