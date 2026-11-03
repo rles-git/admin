@@ -585,48 +585,140 @@ export default function Home() {
   /* Fetch database data                                                      */
   /* ------------------------------------------------------------------------ */
 
-  useEffect(() => {
-    let cancelled = false;
 
-    async function loadStations() {
-      try {
-        setStationsLoading(true);
-        setStationsError("");
+/* -------------------------------------------------------------------------- */
+/* Fetch database data — automatic 5-second refresh                           */
+/* -------------------------------------------------------------------------- */
 
-        const response = await fetch("/api/stations", {
-          cache: "no-store",
-        });
+useEffect(() => {
+  let cancelled = false;
+  let refreshing = false;
 
-        if (!response.ok) {
-          throw new Error(`Request failed (${response.status})`);
-        }
+  async function fetchArray<T>(
+    url: string
+  ): Promise<{ data: T[] | null; error: string }> {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
 
-        const data: unknown = await response.json();
-
-        if (!Array.isArray(data)) {
-          throw new Error("The stations API returned an unexpected response.");
-        }
-
-        if (!cancelled) {
-          setStations(data as Station[]);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setStationsError(
-            error instanceof Error ? error.message : "Could not load stations."
-          );
-        }
-      } finally {
-        if (!cancelled) setStationsLoading(false);
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status})`);
       }
+
+      const data: unknown = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("The API returned an unexpected response.");
+      }
+
+      return {
+        data: data as T[],
+        error: "",
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not load data.",
+      };
     }
+  }
 
-    void loadStations();
+  async function refreshDashboardData() {
+    if (refreshing || cancelled) return;
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    refreshing = true;
+
+    try {
+      const [
+        stationResult,
+        chargerResult,
+        connectorResult,
+        sessionResult,
+        reviewResult,
+      ] = await Promise.all([
+        fetchArray<Station>("/api/stations"),
+        fetchArray<DatabaseCharger>("/api/chargers"),
+        fetchArray<DatabaseConnector>("/api/connectors"),
+        fetchArray<DatabaseSession>("/api/charging-sessions"),
+        fetchArray<DatabaseReview>("/api/reviews"),
+      ]);
+
+      if (cancelled) return;
+
+      // Stations
+      if (stationResult.data !== null) {
+        setStations(stationResult.data);
+        setStationsError("");
+      } else {
+        setStationsError(stationResult.error);
+      }
+
+      setStationsLoading(false);
+
+      // Chargers
+      if (chargerResult.data !== null) {
+        setDatabaseChargers(chargerResult.data);
+        setChargersError("");
+      } else {
+        setChargersError(chargerResult.error);
+      }
+
+      setChargersLoading(false);
+
+      // Connectors
+      if (connectorResult.data !== null) {
+        setDatabaseConnectors(connectorResult.data);
+        setConnectorsError("");
+      } else {
+        setConnectorsError(connectorResult.error);
+      }
+
+      setConnectorsLoading(false);
+
+      // Charging sessions
+      if (sessionResult.data !== null) {
+        setDatabaseSessions(sessionResult.data);
+        setSessionsError("");
+      } else {
+        setSessionsError(sessionResult.error);
+      }
+
+      setSessionsLoading(false);
+
+      // Station reviews
+      if (reviewResult.data !== null) {
+        setDatabaseReviews(reviewResult.data);
+        setReviewsError("");
+      } else {
+        setReviewsError(reviewResult.error);
+      }
+
+      setReviewsLoading(false);
+    } finally {
+      refreshing = false;
+    }
+  }
+
+  // Fetch immediately when the admin panel opens.
+  void refreshDashboardData();
+
+  // Refresh all database data every 5 seconds.
+  const interval = window.setInterval(() => {
+    void refreshDashboardData();
+  }, 5000);
+
+  return () => {
+    cancelled = true;
+    window.clearInterval(interval);
+  };
+}, []);
+
 
   useEffect(() => {
     let cancelled = false;
