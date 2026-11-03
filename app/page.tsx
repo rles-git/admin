@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleAlert,
-  CircleHelp,
   ClipboardList,
   Clock3,
   Download,
@@ -23,7 +22,6 @@ import {
   Map,
   Menu,
   MessageSquareText,
-  Plus,
   PlugZap,
   Search,
   Settings,
@@ -111,6 +109,12 @@ type DatabaseReview = {
   comment: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type EnergyPoint = {
+  date: string;
+  label: string;
+  energy: number;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -212,6 +216,156 @@ function Progress({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Energy delivered chart                                                     */
+/* -------------------------------------------------------------------------- */
+
+function EnergyTrendChart({ data }: { data: EnergyPoint[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="empty-state">
+        <Activity size={22} />
+        <strong>No energy data available</strong>
+        <p>
+          Completed sessions with a start date and energy value will appear
+          here.
+        </p>
+      </div>
+    );
+  }
+
+  const width = 720;
+  const height = 230;
+  const left = 48;
+  const right = 18;
+  const top = 18;
+  const bottom = 38;
+
+  const chartWidth = width - left - right;
+  const chartHeight = height - top - bottom;
+
+  const maxEnergy = Math.max(...data.map((item) => item.energy), 1);
+  const scaleMax = Math.ceil(maxEnergy / 10) * 10 || 10;
+
+  const coordinates = data.map((item, index) => {
+    const x =
+      data.length === 1
+        ? left + chartWidth / 2
+        : left + (index / (data.length - 1)) * chartWidth;
+
+    const y =
+      top + chartHeight - (item.energy / scaleMax) * chartHeight;
+
+    return { ...item, x, y };
+  });
+
+  const line = coordinates
+    .map((point) => `${point.x},${point.y}`)
+    .join(" ");
+
+  const area = [
+    `M ${coordinates[0].x} ${top + chartHeight}`,
+    ...coordinates.map((point) => `L ${point.x} ${point.y}`),
+    `L ${coordinates[coordinates.length - 1].x} ${top + chartHeight}`,
+    "Z",
+  ].join(" ");
+
+  const labelStep = Math.max(1, Math.ceil(data.length / 7));
+
+  return (
+    <div className="energy-chart">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Daily energy delivered from completed charging sessions"
+        style={{
+          width: "100%",
+          height: "auto",
+          display: "block",
+        }}
+      >
+        {[0, 1, 2, 3, 4].map((step) => {
+          const y = top + (step / 4) * chartHeight;
+          const value = scaleMax * (1 - step / 4);
+
+          return (
+            <g key={step}>
+              <line
+                x1={left}
+                y1={y}
+                x2={width - right}
+                y2={y}
+                stroke="currentColor"
+                opacity="0.12"
+                strokeDasharray="4 5"
+              />
+
+              <text
+                x={left - 9}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="currentColor"
+                opacity="0.65"
+              >
+                {formatNumber(value, 0)}
+              </text>
+            </g>
+          );
+        })}
+
+        <path d={area} fill="#91a795" opacity="0.18" />
+
+        <polyline
+          points={line}
+          fill="none"
+          stroke="#58715d"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {coordinates.map((point) => (
+          <circle
+            key={point.date}
+            cx={point.x}
+            cy={point.y}
+            r="3.5"
+            fill="#58715d"
+            stroke="white"
+            strokeWidth="1.5"
+          >
+            <title>
+              {`${point.label}: ${formatNumber(point.energy, 2)} kWh`}
+            </title>
+          </circle>
+        ))}
+
+        {coordinates.map((point, index) =>
+          index % labelStep === 0 || index === coordinates.length - 1 ? (
+            <text
+              key={point.date}
+              x={point.x}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="11"
+              fill="currentColor"
+              opacity="0.7"
+            >
+              {point.label}
+            </text>
+          ) : null
+        )}
+      </svg>
+
+      <div className="energy-chart-caption">
+        <span>Daily energy delivered</span>
+        <strong>kWh</strong>
+      </div>
+    </div>
+  );
+}
+
 function Spec({ label, value }: { label: string; value: string }) {
   return (
     <div className="spec-row">
@@ -220,6 +374,10 @@ function Spec({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Formatting helpers                                                         */
+/* -------------------------------------------------------------------------- */
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -235,6 +393,26 @@ function formatNumber(value: number, decimals = 1) {
   return value.toLocaleString(undefined, {
     maximumFractionDigits: decimals,
   });
+}
+
+/* Returns a YYYY-MM-DD date in Qatar's local timezone. */
+function getQatarDateKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Qatar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  return year && month && day ? `${year}-${month}-${day}` : "";
 }
 
 function getStatusLabel(status: string | null | undefined) {
@@ -732,6 +910,80 @@ export default function Home() {
     };
   }, [databaseSessions]);
 
+  /* ------------------------------------------------------------------------ */
+  /* Daily energy graph data                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  const dailyEnergyData = useMemo<EnergyPoint[]>(() => {
+    const dailyTotals = new Map<string, number>();
+
+    databaseSessions.forEach((session) => {
+      if (
+        session.status.toLowerCase() !== "completed" ||
+        !session.started_at ||
+        session.energy_kwh == null
+      ) {
+        return;
+      }
+
+      const dateKey = getQatarDateKey(session.started_at);
+
+      if (!dateKey) return;
+
+      dailyTotals.set(
+        dateKey,
+        (dailyTotals.get(dateKey) || 0) +
+          (Number(session.energy_kwh) || 0)
+      );
+    });
+
+    const dates = [...dailyTotals.keys()].sort();
+
+    if (dates.length === 0) return [];
+
+    const firstDate = new Date(`${dates[0]}T00:00:00Z`);
+
+    const todayKey = getQatarDateKey(new Date());
+    const lastRecordedDate = dates[dates.length - 1];
+
+    const endDate =
+      todayKey > lastRecordedDate ? todayKey : lastRecordedDate;
+
+    const lastDate = new Date(`${endDate}T00:00:00Z`);
+
+    const result: EnergyPoint[] = [];
+
+    for (
+      const cursor = new Date(firstDate);
+      cursor <= lastDate;
+      cursor.setUTCDate(cursor.getUTCDate() + 1)
+    ) {
+      const date = cursor.toISOString().slice(0, 10);
+
+      const label = new Date(
+        `${date}T12:00:00+03:00`
+      ).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        timeZone: "Asia/Qatar",
+      });
+
+      result.push({
+        date,
+        label,
+        energy: dailyTotals.get(date) || 0,
+      });
+    }
+
+    return result;
+  }, [databaseSessions]);
+
+  const visibleEnergyData = useMemo(() => {
+    return dateRange === "Last 7 days"
+      ? dailyEnergyData.slice(-7)
+      : dailyEnergyData;
+  }, [dailyEnergyData, dateRange]);
+
   const reviewStats = useMemo(() => {
     const total = databaseReviews.length;
 
@@ -974,24 +1226,42 @@ export default function Home() {
       </div>
 
       <div className="analytics-grid">
+        {/* Updated: real daily energy graph from charging_sessions */}
         <section className="panel energy-panel">
           <div className="panel-head">
             <h3>Energy delivered</h3>
-            <span>Database total</span>
+            <span>{dateRange}</span>
           </div>
 
           <div className="chart-summary">
             <strong>
               {sessionsLoading || sessionsError
                 ? "—"
-                : formatNumber(sessionStats.energy)}
+                : formatNumber(
+                    visibleEnergyData.reduce(
+                      (sum, item) => sum + item.energy,
+                      0
+                    )
+                  )}
             </strong>
             <span>kWh</span>
           </div>
 
+          {sessionsLoading ? (
+            <div className="empty-state">Loading energy data…</div>
+          ) : sessionsError ? (
+            <div className="empty-state">
+              <CircleAlert size={22} />
+              <strong>Could not load energy data</strong>
+              <p>{sessionsError}</p>
+            </div>
+          ) : (
+            <EnergyTrendChart data={visibleEnergyData} />
+          )}
+
           <p className="muted tiny">
-            Total energy from completed charging sessions. A daily trend
-            requires timestamp-grouped session data.
+            Daily totals are grouped by the session start date in Qatar time
+            (Asia/Qatar). Only completed sessions are included.
           </p>
         </section>
 
