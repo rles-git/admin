@@ -915,7 +915,7 @@ export default function Home() {
   /* ------------------------------------------------------------------------ */
 
   const dailyEnergyData = useMemo<EnergyPoint[]>(() => {
-    const dailyTotals = new Map<string, number>();
+    const dailyTotals = new globalThis.Map<string, number>();
 
     databaseSessions.forEach((session) => {
       if (
