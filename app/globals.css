@@ -126,3 +126,22 @@ button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,inpu
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.energy-chart {
+  width: 100%;
+  min-width: 0;
+  margin-top: 12px;
+}
+
+.energy-chart svg {
+  overflow: visible;
+}
+
+.energy-chart-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted, #7b857d);
+  font-size: 11px;
+  margin-top: 4px;
+}
