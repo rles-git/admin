@@ -723,7 +723,9 @@ export default function Home() {
         setSessionsError("");
 
         const response = await fetch("/api/charging-sessions", {
+          method: "GET",
           cache: "no-store",
+          credentials: "include",
         });
 
         if (!response.ok) {
