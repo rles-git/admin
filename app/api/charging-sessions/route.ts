@@ -1,8 +1,10 @@
+```tsx
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -42,14 +44,24 @@ export async function GET() {
       ORDER BY cs.created_at DESC
     `;
 
-    return NextResponse.json(sessions);
+    return NextResponse.json(sessions, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
 
   } catch (error) {
     console.error("Failed to load charging sessions:", error);
 
     return NextResponse.json(
       { error: "Failed to load charging sessions" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }
+```
