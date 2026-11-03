@@ -220,7 +220,12 @@ function Progress({
 /* Energy delivered chart                                                     */
 /* -------------------------------------------------------------------------- */
 
+
 function EnergyTrendChart({ data }: { data: EnergyPoint[] }) {
+  const [hoveredPoint, setHoveredPoint] = useState<
+    (EnergyPoint & { x: number; y: number }) | null
+  >(null);
+
   if (data.length === 0) {
     return (
       <div className="empty-state">
@@ -272,100 +277,247 @@ function EnergyTrendChart({ data }: { data: EnergyPoint[] }) {
 
   const labelStep = Math.max(1, Math.ceil(data.length / 7));
 
+  // Keep the popup inside the chart's horizontal boundaries.
+  const popupX = hoveredPoint
+    ? Math.max(
+        95,
+        Math.min(width - 95, hoveredPoint.x)
+      )
+    : 0;
+
+  // Move the popup below the point when the point is near the top.
+  const popupAbove = hoveredPoint && hoveredPoint.y > 85;
+
   return (
     <div className="energy-chart">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Daily energy delivered from completed charging sessions"
-        style={{
-          width: "100%",
-          height: "auto",
-          display: "block",
-        }}
-      >
-        {[0, 1, 2, 3, 4].map((step) => {
-          const y = top + (step / 4) * chartHeight;
-          const value = scaleMax * (1 - step / 4);
+      <div style={{ position: "relative", width: "100%" }}>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label="Daily energy delivered from completed charging sessions"
+          style={{
+            width: "100%",
+            height: "auto",
+            display: "block",
+            overflow: "visible",
+          }}
+        >
+          {[0, 1, 2, 3, 4].map((step) => {
+            const y = top + (step / 4) * chartHeight;
+            const value = scaleMax * (1 - step / 4);
 
-          return (
-            <g key={step}>
-              <line
-                x1={left}
-                y1={y}
-                x2={width - right}
-                y2={y}
-                stroke="currentColor"
-                opacity="0.12"
-                strokeDasharray="4 5"
-              />
+            return (
+              <g key={step}>
+                <line
+                  x1={left}
+                  y1={y}
+                  x2={width - right}
+                  y2={y}
+                  stroke="currentColor"
+                  opacity="0.12"
+                  strokeDasharray="4 5"
+                />
 
+                <text
+                  x={left - 9}
+                  y={y + 4}
+                  textAnchor="end"
+                  fontSize="11"
+                  fill="currentColor"
+                  opacity="0.65"
+                >
+                  {formatNumber(value, 0)}
+                </text>
+              </g>
+            );
+          })}
+
+          <path d={area} fill="#91a795" opacity="0.18" />
+
+          <polyline
+            points={line}
+            fill="none"
+            stroke="#58715d"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {coordinates.map((point) => {
+            const isHovered = hoveredPoint?.date === point.date;
+
+            return (
+              <g key={point.date}>
+                {isHovered && (
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="11"
+                    fill="#91a795"
+                    opacity="0.22"
+                  />
+                )}
+
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={isHovered ? 6.5 : 4.5}
+                  fill="#58715d"
+                  stroke="white"
+                  strokeWidth="2"
+                  style={{
+                    cursor: "pointer",
+                    transition: "r 0.15s ease",
+                  }}
+                  onMouseEnter={() => setHoveredPoint(point)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                  onFocus={() => setHoveredPoint(point)}
+                  onBlur={() => setHoveredPoint(null)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${point.label}: ${formatNumber(
+                    point.energy,
+                    2
+                  )} kWh`}
+                />
+              </g>
+            );
+          })}
+
+          {coordinates.map((point, index) =>
+            index % labelStep === 0 ||
+            index === coordinates.length - 1 ? (
               <text
-                x={left - 9}
-                y={y + 4}
-                textAnchor="end"
+                key={point.date}
+                x={point.x}
+                y={height - 10}
+                textAnchor="middle"
                 fontSize="11"
                 fill="currentColor"
-                opacity="0.65"
+                opacity="0.7"
               >
-                {formatNumber(value, 0)}
+                {point.label}
               </text>
-            </g>
-          );
-        })}
+            ) : null
+          )}
+        </svg>
 
-        <path d={area} fill="#91a795" opacity="0.18" />
-
-        <polyline
-          points={line}
-          fill="none"
-          stroke="#58715d"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {coordinates.map((point) => (
-          <circle
-              key={point.date}
-              cx={point.x}
-              cy={point.y}
-              r="5"
-              fill="#58715d"
-              stroke="white"
-              strokeWidth="2"
+        {/* Custom energy popup */}
+        {hoveredPoint && (
+          <div
+            className="energy-tooltip"
+            style={{
+              position: "absolute",
+              left: `${(popupX / width) * 100}%`,
+              top: `${(hoveredPoint.y / height) * 100}%`,
+              transform: popupAbove
+                ? "translate(-50%, calc(-100% - 15px))"
+                : "translate(-50%, 15px)",
+              zIndex: 20,
+              pointerEvents: "none",
+              minWidth: "170px",
+              padding: "13px 15px",
+              borderRadius: "12px",
+              background: "#ffffff",
+              border: "1px solid #e2eae3",
+              boxShadow: "0 8px 28px rgba(31, 55, 37, 0.16)",
+              animation: "energyTooltipIn 0.15s ease-out",
+            }}
+          >
+            <div
               style={{
-                cursor: "pointer",
-                transition: "r 0.15s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
+                marginBottom: "9px",
               }}
             >
-            <title>
-              {`${point.label}: ${formatNumber(point.energy, 2)} kWh`}
-            </title>
-          </circle>
-        ))}
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "#91a795",
+                  flexShrink: 0,
+                }}
+              />
 
-        {coordinates.map((point, index) =>
-          index % labelStep === 0 || index === coordinates.length - 1 ? (
-            <text
-              key={point.date}
-              x={point.x}
-              y={height - 10}
-              textAnchor="middle"
-              fontSize="11"
-              fill="currentColor"
-              opacity="0.7"
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#78847a",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                ENERGY DELIVERED
+              </span>
+            </div>
+
+            <div
+              style={{
+                fontSize: "23px",
+                fontWeight: 750,
+                lineHeight: 1.2,
+                color: "#58715d",
+                letterSpacing: "-0.7px",
+              }}
             >
-              {point.label}
-            </text>
-          ) : null
+              {formatNumber(hoveredPoint.energy, 2)}
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  marginLeft: "4px",
+                  color: "#849287",
+                }}
+              >
+                kWh
+              </span>
+            </div>
+
+            <div
+              style={{
+                marginTop: "8px",
+                paddingTop: "8px",
+                borderTop: "1px solid #edf1ed",
+                fontSize: "11px",
+                color: "#8b958d",
+              }}
+            >
+              {new Date(
+                `${hoveredPoint.date}T12:00:00+03:00`
+              ).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                timeZone: "Asia/Qatar",
+              })}
+            </div>
+          </div>
         )}
-      </svg>
+      </div>
 
       <div className="energy-chart-caption">
         <span>Daily energy delivered</span>
         <strong>kWh</strong>
       </div>
+
+      <style jsx>{`
+        @keyframes energyTooltipIn {
+          from {
+            opacity: 0;
+            transform: translate(-50%, ${popupAbove ? "5px" : "-5px"});
+          }
+          to {
+            opacity: 1;
+            transform: translate(
+              -50%,
+              ${popupAbove ? "0" : "0"}
+            );
+          }
+        }
+      `}</style>
     </div>
   );
 }
