@@ -780,7 +780,6 @@ useEffect(() => {
 
   return () => {
     cancelled = true;
-    window.clearInterval(interval);
   };
 }, []);
 
