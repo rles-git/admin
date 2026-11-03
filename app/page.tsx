@@ -327,14 +327,18 @@ function EnergyTrendChart({ data }: { data: EnergyPoint[] }) {
 
         {coordinates.map((point) => (
           <circle
-            key={point.date}
-            cx={point.x}
-            cy={point.y}
-            r="3.5"
-            fill="#58715d"
-            stroke="white"
-            strokeWidth="1.5"
-          >
+              key={point.date}
+              cx={point.x}
+              cy={point.y}
+              r="5"
+              fill="#58715d"
+              stroke="white"
+              strokeWidth="2"
+              style={{
+                cursor: "pointer",
+                transition: "r 0.15s ease",
+              }}
+            >
             <title>
               {`${point.label}: ${formatNumber(point.energy, 2)} kWh`}
             </title>
