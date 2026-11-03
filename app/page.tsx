@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -739,55 +739,57 @@ export default function Home() {
 
 
 /* -------------------------------------------------------------------------- */
-/* Fetch stations once when the admin panel opens                             */
+/* Fetch stations                                                             */
 /* -------------------------------------------------------------------------- */
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadStations = useCallback(async () => {
+    try {
+      setStationsLoading(true);
+      setStationsError("");
 
-    async function loadStations() {
-      try {
-        setStationsLoading(true);
-        setStationsError("");
+      const response = await fetch("/api/stations", {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
 
-        const response = await fetch("/api/stations", {
-          method: "GET",
-          cache: "no-store",
-        });
+      if (!response.ok) {
+        let message = `Request failed (${response.status})`;
 
-        if (!response.ok) {
-          throw new Error(`Request failed (${response.status})`);
+        try {
+          const errorData = await response.json();
+          message = errorData.details || errorData.error || message;
+        } catch {
+          // Keep the original HTTP error message.
         }
 
-        const data: unknown = await response.json();
-
-        if (!Array.isArray(data)) {
-          throw new Error("The stations API returned an unexpected response.");
-        }
-
-        if (!cancelled) {
-          setStations(data as Station[]);
-          setStationsError("");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setStationsError(
-            error instanceof Error ? error.message : "Could not load stations."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setStationsLoading(false);
-        }
+        throw new Error(message);
       }
+
+      const data: unknown = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("The stations API returned an unexpected response.");
+      }
+
+      setStations(data as Station[]);
+      setStationsError("");
+    } catch (error) {
+      console.error("Failed to load stations:", error);
+      setStationsError(
+        error instanceof Error ? error.message : "Could not load stations."
+      );
+    } finally {
+      setStationsLoading(false);
     }
-
-    void loadStations();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    void loadStations();
+  }, [loadStations]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2708,10 +2710,11 @@ export default function Home() {
 
         <button
           className="outline-button"
-          onClick={() => window.location.reload()}
+          onClick={() => void loadStations()}
+          disabled={stationsLoading}
         >
           <Activity size={14} />
-          Refresh data
+          {stationsLoading ? "Loading..." : "Refresh data"}
         </button>
       </div>
 
