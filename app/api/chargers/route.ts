@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -22,9 +24,26 @@ export async function GET() {
       FROM public.chargers
       ORDER BY id ASC
     `;
-    return NextResponse.json(chargers);
+
+    return NextResponse.json(chargers, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error) {
-    console.error("Failed to load chargers", error);
-    return NextResponse.json({ error: "Failed to load chargers" }, { status: 500 });
+    console.error("Failed to load chargers:", error);
+
+    return NextResponse.json(
+      {
+        error: "Failed to load chargers",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 }
